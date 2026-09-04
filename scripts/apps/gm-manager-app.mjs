@@ -36,6 +36,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const reasons = SettingsService.reasons(config);
     const benefits = SettingsService.benefits(config);
     const activeVote = VotingService.active();
+    const transfer = AccountService.transferOptions(config.pointMethod);
     const submittedIds = new Set(Object.keys(activeVote?.ballots ?? {}));
     const eligibleUsers = (activeVote?.eligibleUserIds ?? []).map(id => game.users.get(id)).filter(Boolean);
 
@@ -73,7 +74,17 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
         pendingNames: eligibleUsers.filter(user => !submittedIds.has(user.id)).map(user => user.name).join(", ") || "None"
       } : null,
       accountWide: config.pointMethod === POINT_METHODS.ACCOUNT,
-      allowNegativeBalance: config.allowNegativeBalance
+      allowNegativeBalance: config.allowNegativeBalance,
+      transferSources: transfer.sources.map(row => ({
+        ...row,
+        statusLabel: row.orphan ? "ORPHANED" : "Active",
+        secondary: `${row.ownerName} · ${row.balance} pts${row.oldId ? ` · ID ${row.oldId}` : ""}`
+      })),
+      transferDestinations: transfer.destinations.map(row => ({
+        ...row,
+        statusLabel: row.orphan ? "ORPHANED" : "Active",
+        secondary: `${row.ownerName} · ${row.balance} pts${row.oldId ? ` · ID ${row.oldId}` : ""}`
+      }))
     };
   }
 
@@ -110,10 +121,15 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     root.querySelector('[name="redeemBenefit"]')?.addEventListener("change", () => this.#refreshRedeemPreview());
     root.querySelector('[data-action="redeem-benefit"]')?.addEventListener("click", event => void this.#redeem(event));
 
+    root.querySelector('[name="transferSource"]')?.addEventListener("change", () => this.#refreshTransferPreview());
+    root.querySelector('[name="transferDestination"]')?.addEventListener("change", () => this.#refreshTransferPreview());
+    root.querySelector('[data-action="transfer-points"]')?.addEventListener("click", event => void this.#transferPoints(event));
+
     this.#setTab(this.activeTab, { focus: false });
     this.#refreshRecipientLabel();
     this.#refreshGiveReason();
     this.#refreshRedeem();
+    this.#refreshTransferPreview();
   }
 
   async close(options = {}) {
@@ -122,7 +138,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #setTab(tab, { focus = true } = {}) {
-    const allowed = new Set(["voting", "give", "redeem"]);
+    const allowed = new Set(["voting", "give", "redeem", "transfer"]);
     this.activeTab = allowed.has(tab) ? tab : "voting";
     for (const button of this.element.querySelectorAll("[data-manager-tab]")) {
       const active = button.dataset.managerTab === this.activeTab;
@@ -357,6 +373,70 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       await this.render({ force: true });
     } catch (error) {
       console.error(`${MODULE_ID} | Benefit redemption failed.`, error);
+      ui.notifications.error(error.message, { permanent: true });
+    } finally {
+      this._busy = false;
+    }
+  }
+
+  #refreshTransferPreview() {
+    const sourceSelect = this.element.querySelector('[name="transferSource"]');
+    const destinationSelect = this.element.querySelector('[name="transferDestination"]');
+    const preview = this.element.querySelector('[data-transfer-preview]');
+    const button = this.element.querySelector('[data-action="transfer-points"]');
+    const sourceDetail = this.element.querySelector('[data-transfer-source-detail]');
+    const destinationDetail = this.element.querySelector('[data-transfer-destination-detail]');
+    if (!sourceSelect || !destinationSelect || !preview || !button) return;
+    const source = sourceSelect.selectedOptions?.[0];
+    const destination = destinationSelect.selectedOptions?.[0];
+    if (sourceDetail && source) sourceDetail.textContent = source.dataset.secondary || "Source account";
+    if (destinationDetail && destination) destinationDetail.textContent = destination.dataset.secondary || "Destination account";
+    if (!source?.value || !destination?.value || source.value === destination.value) {
+      preview.textContent = source?.value === destination?.value && source?.value ? "Choose a different destination account." : "Select a source and destination account.";
+      preview.classList.remove("debt");
+      button.disabled = true;
+      return;
+    }
+    const amount = Math.trunc(Number(source.dataset.balance) || 0);
+    const destinationBalance = Math.trunc(Number(destination.dataset.balance) || 0);
+    const after = destinationBalance + amount;
+    const sourceName = source.dataset.name || source.textContent || "Source";
+    const destinationName = destination.dataset.name || destination.textContent || "Destination";
+    preview.textContent = `${sourceName}: ${amount} → 0 · ${destinationName}: ${destinationBalance} → ${after}`;
+    preview.classList.toggle("debt", after < 0 || amount < 0);
+    button.disabled = amount === 0;
+  }
+
+  async #transferPoints(event) {
+    event.preventDefault();
+    if (this._busy) return;
+    const sourceSelect = this.element.querySelector('[name="transferSource"]');
+    const destinationSelect = this.element.querySelector('[name="transferDestination"]');
+    const source = sourceSelect?.selectedOptions?.[0];
+    const destination = destinationSelect?.selectedOptions?.[0];
+    if (!source?.value || !destination?.value || source.value === destination.value) return ui.notifications.warn("Choose two different point accounts.");
+    const amount = Math.trunc(Number(source.dataset.balance) || 0);
+    if (!amount) return ui.notifications.warn("The source account has no balance to transfer.");
+    const sourceName = String(source.dataset.name || source.textContent || "Source").trim();
+    const destinationName = String(destination.dataset.name || destination.textContent || "Destination").trim();
+    const destinationBalance = Math.trunc(Number(destination.dataset.balance) || 0);
+    const after = destinationBalance + amount;
+    const orphanNotice = source.dataset.orphan === "true" ? `<p><strong>Orphan cleanup:</strong> after a successful full-balance transfer, this orphaned source will be removed from active World data while a minimal audit tombstone is retained.</p>` : "";
+    const accepted = await confirmDialog({
+      title: "Transfer Full Point Balance?",
+      content: `<p>This administrative recovery tool transfers the <strong>entire balance</strong>.</p><p><strong>${htmlEscape(sourceName)}</strong>: ${amount} → 0</p><p><strong>${htmlEscape(destinationName)}</strong>: ${destinationBalance} → <strong>${after}</strong></p>${orphanNotice}<p>The transfer is recorded on both ledgers with one Transfer ID.</p>`,
+      yes: `Transfer ${amount} Point${Math.abs(amount) === 1 ? "" : "s"}`,
+      danger: source.dataset.orphan !== "true" || amount < 0
+    });
+    if (!accepted) return;
+    try {
+      this._busy = true;
+      const result = await AccountService.transferAll(source.value, destination.value, SettingsService.get().pointMethod);
+      ui.notifications.info(`${result.amount} point(s) transferred from ${result.sourceName} to ${result.destinationName}.`);
+      this.activeTab = "transfer";
+      await this.render({ force: true });
+    } catch (error) {
+      console.error(`${MODULE_ID} | Point transfer failed.`, error);
       ui.notifications.error(error.message, { permanent: true });
     } finally {
       this._busy = false;

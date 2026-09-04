@@ -2,6 +2,7 @@ import { MODULE_ID, MODULE_TITLE } from "./constants.mjs";
 import { SettingsService } from "./services/settings-service.mjs";
 import { AccountService } from "./services/account-service.mjs";
 import { VotingService } from "./services/voting-service.mjs";
+import { WorldStoreService } from "./services/world-store-service.mjs";
 import { GMManagerApp } from "./apps/gm-manager-app.mjs";
 import { PointsRewardsSettingsApp } from "./apps/settings-app.mjs";
 import { PointsLedgerApp } from "./apps/points-ledger-app.mjs";
@@ -31,8 +32,17 @@ Hooks.once("init", () => {
   });
 });
 
-Hooks.once("ready", () => {
+Hooks.once("ready", async () => {
   VotingService.registerSocket();
+  if (game.user?.isGM) {
+    try {
+      const integrity = await WorldStoreService.initialize();
+      if (integrity?.ok !== false) await AccountService.migrateLegacyFlags();
+    } catch (error) {
+      console.error(`${MODULE_ID} | World storage initialization failed.`, error);
+      ui.notifications.error(`Points & Rewards world storage could not initialize: ${error.message}`, { permanent: true });
+    }
+  }
   setTimeout(() => void VotingService.maybePromptCurrentUser(), 500);
 });
 
@@ -70,6 +80,10 @@ Hooks.on("updateActor", (actor, changes) => {
 Hooks.on("updateUser", (_user, changes) => {
   if (!hasModuleFlagChange(changes)) return;
   refreshVisiblePointSurfaces();
+});
+
+Hooks.on("updateSetting", setting => {
+  if (setting?.key === `${MODULE_ID}.worldState`) refreshVisiblePointSurfaces();
 });
 
 Hooks.on(`${MODULE_ID}.pointsChanged`, ({ actor }) => refreshVisiblePointSurfaces(actor));
@@ -112,8 +126,7 @@ function shouldShowPoints(actor) {
   if (!canView) return false;
   const config = SettingsService.get();
   const inFolder = actor.folder?.id === config.actorFolderId;
-  const userAccount = AccountService.accountOwner(actor)?.getFlag(MODULE_ID, "account");
-  return inFolder || hasModuleData(actor) || Boolean(userAccount);
+  return inFolder || AccountService.hasWorldAccount(actor) || hasModuleData(actor);
 }
 
 function decorateActorSheet(app, element) {
@@ -135,7 +148,8 @@ function injectSheetFallback(actor, root) {
   button.type = "button";
   button.className = "pr-sheet-fallback";
   button.dataset.tooltip = "View Points & recent point activity";
-  button.innerHTML = '<i class="fa-solid fa-award"></i><span>Points</span>';
+  button.setAttribute("aria-label", "Points & Rewards");
+  button.innerHTML = '<i class="fa-solid fa-award" aria-hidden="true"></i>';
   button.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();
@@ -169,7 +183,8 @@ function injectDnd5ePointsTab(actor, root) {
   button.dataset.group = group;
   button.dataset.prSheetTab = "true";
   button.dataset.tooltip = "Points & Rewards — current balance and last 10 movements";
-  button.innerHTML = '<i class="fa-solid fa-award" inert></i><span>Points</span>';
+  button.setAttribute("aria-label", "Points & Rewards");
+  button.innerHTML = '<i class="fa-solid fa-award" inert aria-hidden="true"></i>';
   nav.append(button);
 
   const panel = document.createElement("section");

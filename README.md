@@ -1,8 +1,8 @@
 # Points & Rewards System
 
-**Points & Rewards System** is a configurable player-reward framework for Foundry VTT. Its core uses Foundry Actors, Users, ownership, folders, flags, sockets, and Chat Messages rather than D&D-specific character data.
+**Points & Rewards System** is a configurable player-reward framework for Foundry VTT. Its core uses Foundry Actors, Users, ownership, folders, World-scoped module data, sockets, and Chat Messages rather than D&D-specific character data.
 
-## v0.0.1 features
+## v0.0.2 features
 
 - GM entry point directly in the **Actor Directory**, styled to match the Hammer-PvP module suite.
 - A selected Actor folder acts only as the current participant filter. Changing the folder never deletes or changes stored points.
@@ -34,6 +34,16 @@
 - Other systems receive a sheet access fallback that opens the same Points ledger.
 - Built-in **Support the Creator → Buy Me a Coffee** settings entry.
 
+
+### World storage and recovery
+
+- Balances and ledgers are authoritative in hidden **World-scoped Points & Rewards data**; Actor/User documents are identity links rather than the point database.
+- Every User account and Actor subaccount receives a persistent module account ID. Last-known names and Foundry IDs remain available when a linked document disappears.
+- v0.0.1 Actor/User point flags are imported once into World storage and retained as legacy data rather than deleted during migration.
+- Each World-state write is revisioned, protected against stale writes, fingerprinted, re-read for verification, and preceded by a rotating previous-state backup.
+- Missing Actors/Users become recoverable orphan accounts rather than losing their balances.
+- The GM Manager includes a discreet **Transfer Points** tab (`⇄`) for emergency full-balance transfers between compatible active/orphaned accounts. A zeroed orphan is removed from active storage after transfer while a minimal audit tombstone remains.
+
 ## Default/fallback configuration
 
 To prevent null/empty operating states:
@@ -49,7 +59,7 @@ To prevent null/empty operating states:
 - Core logic is system-agnostic.
 - D&D5e receives the initial dedicated sheet-tab integration.
 
-The v0.0.1 package has been statically validated, but should still be live-tested in the target Foundry worlds before being promoted as a stable public release.
+The v0.0.2 package has been statically validated, but the new World-storage migration and recovery workflow should still be live-tested in the target Foundry worlds before being promoted as a stable public release.
 
 ## Support
 

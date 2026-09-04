@@ -1,6 +1,6 @@
 export const MODULE_ID = "points-and-rewards";
 export const MODULE_TITLE = "Points & Rewards System";
-export const MODULE_VERSION = "0.0.1";
+export const MODULE_VERSION = "0.0.2";
 export const SUPPORT_URL = "https://buymeacoffee.com/hammer.pvp";
 
 export const POINT_METHODS = Object.freeze({
@@ -11,6 +11,7 @@ export const POINT_METHODS = Object.freeze({
 export const MIN_CATEGORIES = 2;
 export const MAX_CATEGORIES = 8;
 export const OWNER_LEVEL = 3;
+export const WORLD_SCHEMA_VERSION = 1;
 
 export const DEFAULT_REASON = Object.freeze({
   id: "default-reason",
@@ -63,5 +64,19 @@ export function defaultRuntime() {
   return {
     activeVote: null,
     finalizedSessionIds: []
+  };
+}
+
+export function defaultWorldState() {
+  return {
+    schemaVersion: WORLD_SCHEMA_VERSION,
+    revision: 0,
+    updatedAt: 0,
+    updatedBy: "",
+    integrity: { algorithm: "SHA-256", hash: "" },
+    migrations: { legacyFlagsImported: false, importedAt: 0, summary: null },
+    userAccounts: {},
+    migrationArchives: [],
+    closedAccounts: []
   };
 }

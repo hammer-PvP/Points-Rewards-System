@@ -6,7 +6,8 @@ import {
   MODULE_ID,
   POINT_METHODS,
   defaultConfig,
-  defaultRuntime
+  defaultRuntime,
+  defaultWorldState
 } from "../constants.mjs";
 
 export class SettingsService {
@@ -22,6 +23,18 @@ export class SettingsService {
       config: false,
       type: Object,
       default: defaultRuntime()
+    });
+    game.settings.register(MODULE_ID, "worldState", {
+      scope: "world",
+      config: false,
+      type: Object,
+      default: defaultWorldState()
+    });
+    game.settings.register(MODULE_ID, "worldStateBackup", {
+      scope: "world",
+      config: false,
+      type: Object,
+      default: defaultWorldState()
     });
   }
 

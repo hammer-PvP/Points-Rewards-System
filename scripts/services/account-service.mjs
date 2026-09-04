@@ -1,16 +1,43 @@
 import { MODULE_ID, OWNER_LEVEL, POINT_METHODS } from "../constants.mjs";
 import { SettingsService } from "./settings-service.mjs";
+import { WorldStoreService } from "./world-store-service.mjs";
 import { actorFolderActors, formatDateTime, randomId } from "../utils.mjs";
 
-function emptyAccount() {
+function emptyLedgerAccount() {
   return { balance: 0, ledger: [] };
 }
 
-function normalizeAccount(raw) {
-  const account = raw && typeof raw === "object" ? foundry.utils.deepClone(raw) : emptyAccount();
+function normalizeLedgerAccount(raw) {
+  const account = raw && typeof raw === "object" ? foundry.utils.deepClone(raw) : emptyLedgerAccount();
   account.balance = Math.trunc(Number(account.balance) || 0);
   account.ledger = Array.isArray(account.ledger) ? account.ledger.filter(Boolean) : [];
   return account;
+}
+
+function ledgerSum(account) {
+  return (account?.ledger ?? []).reduce((sum, entry) => sum + Math.trunc(Number(entry?.delta) || 0), 0);
+}
+
+function reconcileImportedAccount(raw, { title = "Legacy Balance Import", description = "Imported from Points & Rewards System v0.0.1 document flags." } = {}) {
+  const account = normalizeLedgerAccount(raw);
+  const sum = ledgerSum(account);
+  if (sum !== account.balance) {
+    const delta = account.balance - sum;
+    account.ledger.push({
+      id: randomId("legacy"), timestamp: Date.now(), delta, before: sum, after: account.balance,
+      type: "migration", title, description, sourceId: randomId("legacy-source"), batchId: "",
+      actorId: "", actorName: "", userId: "", userName: "", createdBy: game.user?.id ?? ""
+    });
+  }
+  return account;
+}
+
+function currentUserName(userId, fallback = "Unknown User") {
+  return game.users.get(userId)?.name ?? fallback;
+}
+
+function currentActorName(actorId, fallback = "Unknown Actor") {
+  return game.actors.get(actorId)?.name ?? fallback;
 }
 
 export class AccountService {
@@ -26,45 +53,154 @@ export class AccountService {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  static #findUserAccountByUserId(state, userId) {
+    if (!userId) return null;
+    return Object.values(state.userAccounts ?? {}).find(account => account?.linkedUserId === userId) ?? null;
+  }
+
+  static #findSubaccountByActorId(state, actorId) {
+    if (!actorId) return null;
+    for (const userAccount of Object.values(state.userAccounts ?? {})) {
+      for (const sub of Object.values(userAccount?.actorSubaccounts ?? {})) {
+        if (sub?.linkedActorId === actorId) return { userAccount, sub };
+      }
+    }
+    return null;
+  }
+
   static accountOwner(actor) {
     if (!actor) return null;
+    const state = WorldStoreService.get();
+    const linked = this.#findSubaccountByActorId(state, actor.id);
+    const linkedUser = linked?.userAccount?.linkedUserId ? game.users.get(linked.userAccount.linkedUserId) : null;
     const owners = this.nonGMOwners(actor);
+    if (linkedUser && !linkedUser.isGM && owners.some(user => user.id === linkedUser.id)) return linkedUser;
     if (!owners.length) return null;
-    const explicitId = String(actor.getFlag(MODULE_ID, "accountUserId") ?? "");
-    const explicit = owners.find(user => user.id === explicitId);
+    const legacyExplicitId = String(actor.getFlag?.(MODULE_ID, "accountUserId") ?? "");
+    const explicit = owners.find(user => user.id === legacyExplicitId);
     if (explicit) return explicit;
     const assigned = owners.find(user => user.character?.id === actor.id);
     return assigned ?? owners[0];
   }
 
+  static #newUserAccount(user = null, { syntheticForActor = null } = {}) {
+    return {
+      id: randomId("prs-user"),
+      linkedUserId: user?.id ?? "",
+      userNameSnapshot: user?.name ?? (syntheticForActor ? `Unassigned — ${syntheticForActor.name}` : "Unassigned User"),
+      syntheticForActorId: syntheticForActor?.id ?? "",
+      createdAt: Date.now(),
+      lastSeenAt: Date.now(),
+      shared: emptyLedgerAccount(),
+      actorSubaccounts: {}
+    };
+  }
+
+  static #newSubaccount(actor) {
+    return {
+      id: randomId("prs-actor"),
+      linkedActorId: actor?.id ?? "",
+      actorNameSnapshot: actor?.name ?? "Unknown Actor",
+      actorUuidSnapshot: actor?.uuid ?? (actor?.id ? `Actor.${actor.id}` : ""),
+      createdAt: Date.now(),
+      lastSeenAt: Date.now(),
+      account: emptyLedgerAccount()
+    };
+  }
+
+  static #ensureUserAccount(state, user = null, { actor = null } = {}) {
+    if (user) {
+      let account = this.#findUserAccountByUserId(state, user.id);
+      if (!account) {
+        account = this.#newUserAccount(user);
+        state.userAccounts[account.id] = account;
+      }
+      account.userNameSnapshot = user.name;
+      account.lastSeenAt = Date.now();
+      account.shared = normalizeLedgerAccount(account.shared);
+      account.actorSubaccounts = account.actorSubaccounts && typeof account.actorSubaccounts === "object" ? account.actorSubaccounts : {};
+      return account;
+    }
+
+    if (actor) {
+      const existing = Object.values(state.userAccounts).find(account => account?.syntheticForActorId === actor.id);
+      if (existing) return existing;
+      const account = this.#newUserAccount(null, { syntheticForActor: actor });
+      state.userAccounts[account.id] = account;
+      return account;
+    }
+    return null;
+  }
+
+  static #ensureSubaccount(state, actor, owner = this.accountOwner(actor)) {
+    let found = this.#findSubaccountByActorId(state, actor.id);
+    if (found) {
+      found.sub.actorNameSnapshot = actor.name;
+      found.sub.actorUuidSnapshot = actor.uuid ?? `Actor.${actor.id}`;
+      found.sub.lastSeenAt = Date.now();
+      found.sub.account = normalizeLedgerAccount(found.sub.account);
+      if (owner && found.userAccount.linkedUserId !== owner.id) {
+        // Ownership changes are administrative context. Move the subaccount intact under the newly resolved User account.
+        const targetUserAccount = this.#ensureUserAccount(state, owner);
+        delete found.userAccount.actorSubaccounts[found.sub.id];
+        targetUserAccount.actorSubaccounts[found.sub.id] = found.sub;
+        found = { userAccount: targetUserAccount, sub: found.sub };
+      }
+      return found;
+    }
+    const userAccount = this.#ensureUserAccount(state, owner, { actor });
+    const sub = this.#newSubaccount(actor);
+    userAccount.actorSubaccounts[sub.id] = sub;
+    return { userAccount, sub };
+  }
+
   static async rememberParticipation(actor) {
     if (!actor || !game.user?.isGM) return;
-    const updates = {};
-    if (!actor.getFlag(MODULE_ID, "participating")) updates[`flags.${MODULE_ID}.participating`] = true;
-    const owner = this.accountOwner(actor);
-    if (owner && actor.getFlag(MODULE_ID, "accountUserId") !== owner.id) {
-      updates[`flags.${MODULE_ID}.accountUserId`] = owner.id;
-    }
-    if (Object.keys(updates).length) await actor.update(updates);
+    const state = WorldStoreService.get();
+    this.#ensureSubaccount(state, actor, this.accountOwner(actor));
+    await WorldStoreService.save(state);
+  }
+
+  static hasWorldAccount(actor) {
+    if (!actor) return false;
+    return Boolean(this.#findSubaccountByActorId(WorldStoreService.get(), actor.id));
   }
 
   static trackedActors() {
-    const config = SettingsService.get();
-    const current = new Set(this.configuredActors(config).map(actor => actor.id));
-    return game.actors.filter(actor => current.has(actor.id)
-      || actor.getFlag(MODULE_ID, "participating")
-      || actor.getFlag(MODULE_ID, "account"));
+    const current = new Map(this.configuredActors().map(actor => [actor.id, actor]));
+    const state = WorldStoreService.get();
+    for (const userAccount of Object.values(state.userAccounts)) {
+      for (const sub of Object.values(userAccount.actorSubaccounts ?? {})) {
+        const actor = game.actors.get(sub.linkedActorId);
+        if (actor) current.set(actor.id, actor);
+      }
+    }
+    // Legacy v0.0.1 flags are considered only until the one-time import runs.
+    for (const actor of game.actors) {
+      if (actor.getFlag?.(MODULE_ID, "account") || actor.getFlag?.(MODULE_ID, "participating")) current.set(actor.id, actor);
+    }
+    return Array.from(current.values());
   }
 
   static targetFor(actor, method = SettingsService.get().pointMethod) {
     if (!actor) return null;
-    if (method === POINT_METHODS.ACCOUNT) return this.accountOwner(actor);
-    return actor;
+    return method === POINT_METHODS.ACCOUNT ? this.accountOwner(actor) : actor;
   }
 
   static accountForActor(actor, method = SettingsService.get().pointMethod) {
-    const target = this.targetFor(actor, method);
-    return normalizeAccount(target?.getFlag(MODULE_ID, "account"));
+    if (!actor) return emptyLedgerAccount();
+    const state = WorldStoreService.get();
+    const found = this.#findSubaccountByActorId(state, actor.id);
+    if (!found) return emptyLedgerAccount();
+    if (method === POINT_METHODS.ACCOUNT) {
+      const owner = this.accountOwner(actor);
+      if (owner && found.userAccount.linkedUserId !== owner.id) {
+        const currentOwnerAccount = this.#findUserAccountByUserId(state, owner.id);
+        return currentOwnerAccount ? normalizeLedgerAccount(currentOwnerAccount.shared) : emptyLedgerAccount();
+      }
+      return normalizeLedgerAccount(found.userAccount.shared);
+    }
+    return normalizeLedgerAccount(found.sub.account);
   }
 
   static balance(actor, method = SettingsService.get().pointMethod) {
@@ -98,7 +234,7 @@ export class AccountService {
         name: user.name,
         actorIds: [],
         actorNames: [],
-        balance: normalizeAccount(user.getFlag(MODULE_ID, "account")).balance,
+        balance: this.balance(actor, POINT_METHODS.ACCOUNT),
         type: "user"
       };
       row.actorIds.push(actor.id);
@@ -113,6 +249,18 @@ export class AccountService {
     if (row.actorId) return game.actors.get(row.actorId) ?? null;
     const id = row.actorIds?.[0];
     return id ? game.actors.get(id) ?? null : null;
+  }
+
+  static #containerForActor(state, actor, method, { create = false } = {}) {
+    let found = this.#findSubaccountByActorId(state, actor?.id);
+    if (!found && create && actor) found = this.#ensureSubaccount(state, actor, this.accountOwner(actor));
+    if (!found) return null;
+    if (method === POINT_METHODS.ACCOUNT) {
+      found.userAccount.shared = normalizeLedgerAccount(found.userAccount.shared);
+      return { container: found.userAccount.shared, userAccount: found.userAccount, sub: found.sub };
+    }
+    found.sub.account = normalizeLedgerAccount(found.sub.account);
+    return { container: found.sub.account, userAccount: found.userAccount, sub: found.sub };
   }
 
   static async commit(actor, {
@@ -130,14 +278,15 @@ export class AccountService {
     delta = Math.trunc(Number(delta) || 0);
     if (!delta) throw new Error("Point commits cannot have a zero value.");
 
-    await this.rememberParticipation(actor);
-    const target = this.targetFor(actor, method);
-    if (!target) throw new Error(`Could not resolve a point account for ${actor.name}.`);
-    const account = normalizeAccount(target.getFlag(MODULE_ID, "account"));
+    const state = WorldStoreService.get();
+    const resolved = this.#containerForActor(state, actor, method, { create: true });
+    if (!resolved) throw new Error(`Could not resolve a point account for ${actor.name}.`);
+    const account = resolved.container;
     if (sourceId && account.ledger.some(entry => entry.sourceId === sourceId)) {
-      return { skipped: true, account, target };
+      return { skipped: true, account: foundry.utils.deepClone(account), target: this.targetFor(actor, method) };
     }
 
+    const owner = this.accountOwner(actor);
     const before = account.balance;
     const after = before + delta;
     const entry = {
@@ -153,16 +302,20 @@ export class AccountService {
       batchId: String(batchId || ""),
       actorId: actor.id,
       actorName: actor.name,
+      actorSubaccountId: resolved.sub.id,
+      userId: owner?.id ?? resolved.userAccount.linkedUserId ?? "",
+      userName: owner?.name ?? resolved.userAccount.userNameSnapshot ?? "",
       accountType: method,
-      accountId: target.id,
+      accountId: method === POINT_METHODS.ACCOUNT ? resolved.userAccount.id : resolved.sub.id,
       createdBy: String(createdBy || "")
     };
     account.balance = after;
     account.ledger.push(entry);
     if (account.ledger.length > 500) account.ledger = account.ledger.slice(-500);
-    await target.setFlag(MODULE_ID, "account", account);
-    Hooks.callAll(`${MODULE_ID}.pointsChanged`, { actor, target, account, entry });
-    return { skipped: false, account, target, entry };
+    const saved = await WorldStoreService.save(state);
+    const refreshed = this.accountForActor(actor, method);
+    Hooks.callAll(`${MODULE_ID}.pointsChanged`, { actor, target: this.targetFor(actor, method), account: refreshed, entry, worldRevision: saved.revision });
+    return { skipped: false, account: refreshed, target: this.targetFor(actor, method), entry };
   }
 
   static async reverse(actor, entry, method = SettingsService.get().pointMethod) {
@@ -186,46 +339,41 @@ export class AccountService {
 
   static migrationPreview(fromMethod, toMethod) {
     if (fromMethod === toMethod) return { rows: [], warnings: [] };
-    const actors = this.trackedActors();
+    const state = WorldStoreService.get();
     const warnings = [];
     const rows = [];
 
     if (fromMethod === POINT_METHODS.ACCOUNT && toMethod === POINT_METHODS.CHARACTER) {
-      const users = new Map();
-      for (const actor of actors) {
-        const owner = this.accountOwner(actor);
-        if (!owner) continue;
-        const row = users.get(owner.id) ?? { user: owner, actors: [] };
-        row.actors.push(actor);
-        users.set(owner.id, row);
-      }
-      for (const { user, actors: owned } of users.values()) {
-        const balance = normalizeAccount(user.getFlag(MODULE_ID, "account")).balance;
-        if (!owned.length) continue;
-        const share = Math.floor(balance / owned.length);
-        const distributed = share * owned.length;
-        const remainder = balance - distributed;
+      for (const userAccount of Object.values(state.userAccounts)) {
+        const actors = Object.values(userAccount.actorSubaccounts ?? {})
+          .map(sub => game.actors.get(sub.linkedActorId))
+          .filter(Boolean);
+        if (!actors.length) continue;
+        const balance = normalizeLedgerAccount(userAccount.shared).balance;
+        const share = Math.floor(balance / actors.length);
+        const remainder = balance - (share * actors.length);
         rows.push({
-          label: user.name,
+          label: currentUserName(userAccount.linkedUserId, userAccount.userNameSnapshot),
           before: balance,
-          after: owned.map(actor => `${actor.name}: ${share}`).join(" · "),
+          after: actors.map(actor => `${actor.name}: ${share}`).join(" · "),
           remainder
         });
-        if (remainder) warnings.push(`${user.name}: ${remainder} point(s) will be discarded by rounding.`);
+        if (remainder) warnings.push(`${currentUserName(userAccount.linkedUserId, userAccount.userNameSnapshot)}: ${remainder} point(s) will be discarded by rounding.`);
       }
     } else {
-      const users = new Map();
-      for (const actor of actors) {
-        const owner = this.accountOwner(actor);
-        if (!owner) continue;
-        const balance = normalizeAccount(actor.getFlag(MODULE_ID, "account")).balance;
-        const row = users.get(owner.id) ?? { user: owner, total: 0, actors: [] };
-        row.total += balance;
-        row.actors.push(`${actor.name}: ${balance}`);
-        users.set(owner.id, row);
-      }
-      for (const { user, total, actors: actorRows } of users.values()) {
-        rows.push({ label: user.name, before: actorRows.join(" · "), after: total, remainder: 0 });
+      for (const userAccount of Object.values(state.userAccounts)) {
+        const actorRows = Object.values(userAccount.actorSubaccounts ?? {}).map(sub => ({
+          name: currentActorName(sub.linkedActorId, sub.actorNameSnapshot),
+          balance: normalizeLedgerAccount(sub.account).balance
+        }));
+        if (!actorRows.length) continue;
+        const total = actorRows.reduce((sum, row) => sum + row.balance, 0);
+        rows.push({
+          label: currentUserName(userAccount.linkedUserId, userAccount.userNameSnapshot),
+          before: actorRows.map(row => `${row.name}: ${row.balance}`).join(" · "),
+          after: total,
+          remainder: 0
+        });
       }
     }
     return { rows, warnings };
@@ -233,73 +381,288 @@ export class AccountService {
 
   static async migrate(fromMethod, toMethod) {
     if (!game.user?.isGM || fromMethod === toMethod) return;
-    const actors = this.trackedActors();
+    const state = WorldStoreService.get();
     const now = Date.now();
+    const archive = { id: randomId("method-migration"), timestamp: now, fromMethod, toMethod, snapshot: foundry.utils.deepClone(state.userAccounts) };
+    state.migrationArchives.push(archive);
+    state.migrationArchives = state.migrationArchives.slice(-50);
 
     if (fromMethod === POINT_METHODS.ACCOUNT && toMethod === POINT_METHODS.CHARACTER) {
-      const users = new Map();
-      for (const actor of actors) {
-        const owner = this.accountOwner(actor);
-        if (!owner) continue;
-        const row = users.get(owner.id) ?? { user: owner, actors: [] };
-        row.actors.push(actor);
-        users.set(owner.id, row);
-      }
-      for (const { user, actors: owned } of users.values()) {
-        const old = normalizeAccount(user.getFlag(MODULE_ID, "account"));
-        if (!owned.length) continue;
-        const share = Math.floor(old.balance / owned.length);
-        const remainder = old.balance - (share * owned.length);
-        for (const actor of owned) {
-          const entry = {
-            id: randomId("migration"), timestamp: now, delta: share, before: 0, after: share,
-            type: "migration", title: "Point Method Conversion",
-            description: `Account-Wide → Character-Based. Source account: ${user.name}.`,
-            sourceId: `migration:${now}:${user.id}:${actor.id}`, batchId: `migration:${now}`,
-            actorId: actor.id, actorName: actor.name, accountType: POINT_METHODS.CHARACTER,
-            accountId: actor.id, createdBy: game.user.id
+      for (const userAccount of Object.values(state.userAccounts)) {
+        const activeSubs = Object.values(userAccount.actorSubaccounts ?? {}).filter(sub => game.actors.get(sub.linkedActorId));
+        if (!activeSubs.length) continue;
+        const old = normalizeLedgerAccount(userAccount.shared);
+        const share = Math.floor(old.balance / activeSubs.length);
+        const remainder = old.balance - (share * activeSubs.length);
+        for (const sub of activeSubs) {
+          const name = currentActorName(sub.linkedActorId, sub.actorNameSnapshot);
+          sub.account = {
+            balance: share,
+            ledger: [{
+              id: randomId("migration"), timestamp: now, delta: share, before: 0, after: share,
+              type: "migration", title: "Point Method Conversion",
+              description: `Account-Wide → Character-Based. Source account: ${currentUserName(userAccount.linkedUserId, userAccount.userNameSnapshot)}.`,
+              sourceId: `migration:${archive.id}:${sub.id}`, batchId: archive.id,
+              actorId: sub.linkedActorId, actorName: name, actorSubaccountId: sub.id,
+              userId: userAccount.linkedUserId, userName: userAccount.userNameSnapshot,
+              accountType: POINT_METHODS.CHARACTER, accountId: sub.id, createdBy: game.user.id
+            }]
           };
-          await actor.setFlag(MODULE_ID, "account", { balance: share, ledger: [entry] });
-          await this.rememberParticipation(actor);
         }
-        await user.setFlag(MODULE_ID, "migrationArchive", {
-          timestamp: now, from: POINT_METHODS.ACCOUNT, to: POINT_METHODS.CHARACTER,
-          balance: old.balance, remainder, account: old
-        });
-        await user.setFlag(MODULE_ID, "account", emptyAccount());
+        userAccount.shared = emptyLedgerAccount();
+        if (remainder) archive.remainder = (archive.remainder ?? 0) + remainder;
       }
     } else {
-      const users = new Map();
-      for (const actor of actors) {
-        const owner = this.accountOwner(actor);
-        if (!owner) continue;
-        const old = normalizeAccount(actor.getFlag(MODULE_ID, "account"));
-        const row = users.get(owner.id) ?? { user: owner, total: 0, actors: [] };
-        row.total += old.balance;
-        row.actors.push({ actor, account: old });
-        users.set(owner.id, row);
-      }
-      for (const { user, total, actors: actorRows } of users.values()) {
-        const contextActor = actorRows[0]?.actor;
-        const entry = {
-          id: randomId("migration"), timestamp: now, delta: total, before: 0, after: total,
-          type: "migration", title: "Point Method Conversion",
-          description: `Character-Based → Account-Wide. ${actorRows.map(row => `${row.actor.name}: ${row.account.balance}`).join("; ")}`,
-          sourceId: `migration:${now}:${user.id}`, batchId: `migration:${now}`,
-          actorId: contextActor?.id ?? "", actorName: contextActor?.name ?? user.name,
-          accountType: POINT_METHODS.ACCOUNT, accountId: user.id, createdBy: game.user.id
+      for (const userAccount of Object.values(state.userAccounts)) {
+        const subs = Object.values(userAccount.actorSubaccounts ?? {});
+        if (!subs.length) continue;
+        const total = subs.reduce((sum, sub) => sum + normalizeLedgerAccount(sub.account).balance, 0);
+        userAccount.shared = {
+          balance: total,
+          ledger: [{
+            id: randomId("migration"), timestamp: now, delta: total, before: 0, after: total,
+            type: "migration", title: "Point Method Conversion",
+            description: `Character-Based → Account-Wide. ${subs.map(sub => `${currentActorName(sub.linkedActorId, sub.actorNameSnapshot)}: ${normalizeLedgerAccount(sub.account).balance}`).join("; ")}`,
+            sourceId: `migration:${archive.id}:${userAccount.id}`, batchId: archive.id,
+            actorId: subs[0]?.linkedActorId ?? "", actorName: subs[0]?.actorNameSnapshot ?? userAccount.userNameSnapshot,
+            actorSubaccountId: subs[0]?.id ?? "", userId: userAccount.linkedUserId, userName: userAccount.userNameSnapshot,
+            accountType: POINT_METHODS.ACCOUNT, accountId: userAccount.id, createdBy: game.user.id
+          }]
         };
-        await user.setFlag(MODULE_ID, "account", { balance: total, ledger: [entry] });
-        for (const row of actorRows) {
-          await row.actor.setFlag(MODULE_ID, "migrationArchive", {
-            timestamp: now, from: POINT_METHODS.CHARACTER, to: POINT_METHODS.ACCOUNT,
-            account: row.account
-          });
-          await row.actor.setFlag(MODULE_ID, "account", emptyAccount());
-          await this.rememberParticipation(row.actor);
-        }
+        for (const sub of subs) sub.account = emptyLedgerAccount();
       }
     }
+    await WorldStoreService.save(state);
     Hooks.callAll(`${MODULE_ID}.methodMigrated`, { fromMethod, toMethod });
+  }
+
+  static async migrateLegacyFlags() {
+    if (!game.user?.isGM) return { imported: false, reason: "not-gm" };
+    const state = WorldStoreService.get();
+    if (state.migrations?.legacyFlagsImported) return { imported: false, reason: "already-imported" };
+
+    let actorAccounts = 0;
+    let userAccounts = 0;
+    let transactions = 0;
+
+    for (const actor of game.actors) {
+      const raw = actor.getFlag?.(MODULE_ID, "account");
+      const legacyOwnerId = String(actor.getFlag?.(MODULE_ID, "accountUserId") ?? "");
+      const legacyOwner = legacyOwnerId ? game.users.get(legacyOwnerId) : null;
+      const owner = legacyOwner && !legacyOwner.isGM ? legacyOwner : this.accountOwner(actor);
+      const hasRaw = raw && typeof raw === "object" && (Number(raw.balance) || Array.isArray(raw.ledger) && raw.ledger.length);
+      const participated = Boolean(actor.getFlag?.(MODULE_ID, "participating"));
+      if (!hasRaw && !participated && !legacyOwnerId) continue;
+      const found = this.#ensureSubaccount(state, actor, owner);
+      if (hasRaw) {
+        found.sub.account = reconcileImportedAccount(raw);
+        actorAccounts += 1;
+        transactions += found.sub.account.ledger.length;
+      }
+    }
+
+    for (const user of game.users) {
+      if (user.isGM) continue;
+      const raw = user.getFlag?.(MODULE_ID, "account");
+      const hasRaw = raw && typeof raw === "object" && (Number(raw.balance) || Array.isArray(raw.ledger) && raw.ledger.length);
+      if (!hasRaw) continue;
+      const userAccount = this.#ensureUserAccount(state, user);
+      userAccount.shared = reconcileImportedAccount(raw);
+      userAccounts += 1;
+      transactions += userAccount.shared.ledger.length;
+    }
+
+    state.migrations = {
+      legacyFlagsImported: true,
+      importedAt: Date.now(),
+      summary: { actorAccounts, userAccounts, transactions }
+    };
+    await WorldStoreService.save(state);
+    if (actorAccounts || userAccounts) {
+      ui.notifications.info(`Points & Rewards migrated ${actorAccounts} character account(s) and ${userAccounts} user account(s) into protected World storage.`);
+    }
+    return { imported: true, actorAccounts, userAccounts, transactions };
+  }
+
+  static #containerRows(method = SettingsService.get().pointMethod) {
+    const state = WorldStoreService.get();
+    const rows = [];
+    if (method === POINT_METHODS.CHARACTER) {
+      for (const userAccount of Object.values(state.userAccounts)) {
+        for (const sub of Object.values(userAccount.actorSubaccounts ?? {})) {
+          const actor = game.actors.get(sub.linkedActorId);
+          const account = normalizeLedgerAccount(sub.account);
+          rows.push({
+            key: `sub:${sub.id}`,
+            internalId: sub.id,
+            parentId: userAccount.id,
+            type: "actor",
+            orphan: !actor,
+            name: actor?.name ?? sub.actorNameSnapshot,
+            ownerName: currentUserName(userAccount.linkedUserId, userAccount.userNameSnapshot),
+            balance: account.balance,
+            oldId: sub.linkedActorId,
+            lastSeenAt: sub.lastSeenAt ?? sub.createdAt ?? 0
+          });
+        }
+      }
+      const knownActors = new Set(rows.filter(row => !row.orphan).map(row => row.oldId));
+      for (const actor of this.configuredActors()) {
+        if (knownActors.has(actor.id)) continue;
+        rows.push({
+          key: `actor:${actor.id}`,
+          internalId: "",
+          parentId: "",
+          type: "actor",
+          orphan: false,
+          name: actor.name,
+          ownerName: this.accountOwner(actor)?.name ?? "No Player Owner",
+          balance: 0,
+          oldId: actor.id,
+          lastSeenAt: Date.now(),
+          virtual: true
+        });
+      }
+    } else {
+      for (const userAccount of Object.values(state.userAccounts)) {
+        const user = userAccount.linkedUserId ? game.users.get(userAccount.linkedUserId) : null;
+        rows.push({
+          key: `userAccount:${userAccount.id}`,
+          internalId: userAccount.id,
+          type: "user",
+          orphan: !user,
+          name: user?.name ?? userAccount.userNameSnapshot,
+          ownerName: Object.values(userAccount.actorSubaccounts ?? {}).map(sub => currentActorName(sub.linkedActorId, sub.actorNameSnapshot)).join(", ") || "No linked Actors",
+          balance: normalizeLedgerAccount(userAccount.shared).balance,
+          oldId: userAccount.linkedUserId,
+          lastSeenAt: userAccount.lastSeenAt ?? userAccount.createdAt ?? 0
+        });
+      }
+      const knownUsers = new Set(rows.filter(row => !row.orphan).map(row => row.oldId));
+      for (const actor of this.configuredActors()) {
+        const user = this.accountOwner(actor);
+        if (!user || knownUsers.has(user.id)) continue;
+        knownUsers.add(user.id);
+        rows.push({
+          key: `user:${user.id}`,
+          internalId: "",
+          type: "user",
+          orphan: false,
+          name: user.name,
+          ownerName: actor.name,
+          balance: 0,
+          oldId: user.id,
+          lastSeenAt: Date.now(),
+          virtual: true
+        });
+      }
+    }
+    return rows.sort((a, b) => Number(b.orphan) - Number(a.orphan) || a.name.localeCompare(b.name));
+  }
+
+  static transferOptions(method = SettingsService.get().pointMethod) {
+    const all = this.#containerRows(method);
+    return {
+      sources: all.filter(row => row.balance !== 0),
+      destinations: all
+    };
+  }
+
+  static #resolveTransferContainer(state, key, method, { create = false } = {}) {
+    const [kind, id] = String(key || "").split(":");
+    if (method === POINT_METHODS.CHARACTER) {
+      if (kind === "actor") {
+        const actor = game.actors.get(id);
+        if (!actor || !create) return null;
+        const found = this.#ensureSubaccount(state, actor, this.accountOwner(actor));
+        return { account: found.sub.account, userAccount: found.userAccount, sub: found.sub, actor };
+      }
+      if (kind === "sub") {
+        for (const userAccount of Object.values(state.userAccounts)) {
+          const sub = userAccount.actorSubaccounts?.[id];
+          if (sub) return { account: sub.account = normalizeLedgerAccount(sub.account), userAccount, sub, actor: game.actors.get(sub.linkedActorId) ?? null };
+        }
+      }
+      return null;
+    }
+
+    if (kind === "user") {
+      const user = game.users.get(id);
+      if (!user || !create) return null;
+      const userAccount = this.#ensureUserAccount(state, user);
+      userAccount.shared = normalizeLedgerAccount(userAccount.shared);
+      return { account: userAccount.shared, userAccount, sub: null, user };
+    }
+    if (kind === "userAccount") {
+      const userAccount = state.userAccounts[id];
+      if (!userAccount) return null;
+      userAccount.shared = normalizeLedgerAccount(userAccount.shared);
+      return { account: userAccount.shared, userAccount, sub: null, user: game.users.get(userAccount.linkedUserId) ?? null };
+    }
+    return null;
+  }
+
+  static async transferAll(sourceKey, destinationKey, method = SettingsService.get().pointMethod) {
+    if (!game.user?.isGM) throw new Error("Only a GM can transfer point balances.");
+    if (!sourceKey || !destinationKey || sourceKey === destinationKey) throw new Error("Choose two different point accounts.");
+    const state = WorldStoreService.get();
+    const source = this.#resolveTransferContainer(state, sourceKey, method, { create: false });
+    const destination = this.#resolveTransferContainer(state, destinationKey, method, { create: true });
+    if (!source || !destination) throw new Error("One of the selected point accounts could not be resolved.");
+    if (source.account === destination.account) throw new Error("Source and destination resolve to the same point account.");
+    const amount = Math.trunc(Number(source.account.balance) || 0);
+    if (!amount) throw new Error("The source account has no balance to transfer.");
+
+    const transferId = randomId("transfer");
+    const now = Date.now();
+    const sourceBefore = source.account.balance;
+    const destinationBefore = destination.account.balance;
+    const sourceName = source.actor?.name ?? source.sub?.actorNameSnapshot ?? source.user?.name ?? source.userAccount.userNameSnapshot;
+    const destinationName = destination.actor?.name ?? destination.sub?.actorNameSnapshot ?? destination.user?.name ?? destination.userAccount.userNameSnapshot;
+
+    const common = {
+      timestamp: now, type: "transfer", sourceId: transferId, batchId: transferId,
+      createdBy: game.user.id, transferId,
+      sourceNameSnapshot: sourceName, destinationNameSnapshot: destinationName
+    };
+    source.account.balance = 0;
+    source.account.ledger.push({
+      ...common, id: randomId("tx"), delta: -amount, before: sourceBefore, after: 0,
+      title: "Account Transfer Out", description: `Full balance transferred to ${destinationName}.`
+    });
+    destination.account.balance = destinationBefore + amount;
+    destination.account.ledger.push({
+      ...common, id: randomId("tx"), delta: amount, before: destinationBefore, after: destinationBefore + amount,
+      title: "Account Transfer In", description: `Full balance transferred from ${sourceName}.`
+    });
+    if (source.account.ledger.length > 500) source.account.ledger = source.account.ledger.slice(-500);
+    if (destination.account.ledger.length > 500) destination.account.ledger = destination.account.ledger.slice(-500);
+
+    const sourceOrphan = method === POINT_METHODS.CHARACTER ? !source.actor : !source.user;
+    if (sourceOrphan) {
+      state.closedAccounts.push({
+        id: randomId("closed"), closedAt: now, transferId, method,
+        sourceAccountId: method === POINT_METHODS.CHARACTER ? source.sub.id : source.userAccount.id,
+        sourceNameSnapshot: sourceName, sourceLinkedId: method === POINT_METHODS.CHARACTER ? source.sub.linkedActorId : source.userAccount.linkedUserId,
+        destinationAccountId: method === POINT_METHODS.CHARACTER ? destination.sub.id : destination.userAccount.id,
+        destinationNameSnapshot: destinationName, amount
+      });
+      state.closedAccounts = state.closedAccounts.slice(-500);
+
+      if (method === POINT_METHODS.CHARACTER) {
+        delete source.userAccount.actorSubaccounts[source.sub.id];
+        const noSubs = !Object.keys(source.userAccount.actorSubaccounts ?? {}).length;
+        const noShared = normalizeLedgerAccount(source.userAccount.shared).balance === 0;
+        const noUser = !source.userAccount.linkedUserId || !game.users.get(source.userAccount.linkedUserId);
+        if (noSubs && noShared && noUser) delete state.userAccounts[source.userAccount.id];
+      } else {
+        const allSubsZero = Object.values(source.userAccount.actorSubaccounts ?? {}).every(sub => normalizeLedgerAccount(sub.account).balance === 0);
+        if (allSubsZero) delete state.userAccounts[source.userAccount.id];
+      }
+    }
+
+    await WorldStoreService.save(state);
+    Hooks.callAll(`${MODULE_ID}.pointsChanged`, { actor: destination.actor ?? null, account: foundry.utils.deepClone(destination.account), entry: destination.account.ledger.at(-1) });
+    return { transferId, amount, sourceName, destinationName, destinationBalance: destination.account.balance, sourceOrphan, cleaned: sourceOrphan };
   }
 }

@@ -8,6 +8,7 @@
     <button type="button" data-manager-tab="voting"><i class="fa-solid fa-check-to-slot"></i> Voting</button>
     <button type="button" data-manager-tab="give"><i class="fa-solid fa-circle-plus"></i> Give Points</button>
     <button type="button" data-manager-tab="redeem"><i class="fa-solid fa-gift"></i> Redeem Benefit</button>
+    <button type="button" class="pr-transfer-tab" data-manager-tab="transfer" data-tooltip="Transfer Points" aria-label="Transfer Points"><i class="fa-solid fa-right-left"></i></button>
   </nav>
 
   <main class="pr-manager-body">
@@ -112,6 +113,35 @@
         <div class="pr-actions-row pr-actions-end"><button type="button" class="pr-primary" data-action="redeem-benefit"><i class="fa-solid fa-gift"></i> Redeem Benefit</button></div>
       {{else}}
         <div class="pr-empty-state"><i class="fa-solid fa-user-slash"></i><p>No Actors are available in the selected folder.</p></div>
+      {{/if}}
+    </section>
+    <section data-manager-panel="transfer" hidden>
+      <div class="pr-section-header"><div><h2>Transfer Points</h2><p>Administrative recovery tool. Transfers the entire balance between compatible accounts.</p></div></div>
+      {{#if transferSources.length}}
+        <div class="pr-transfer-grid">
+          <label class="pr-field">Source Account
+            <select name="transferSource">
+              {{#each transferSources}}
+                <option value="{{key}}" data-name="{{name}}" data-balance="{{balance}}" data-orphan="{{orphan}}" data-secondary="{{secondary}}">{{#if orphan}}⚠ {{/if}}{{name}} — {{balance}} pts — {{statusLabel}}</option>
+              {{/each}}
+            </select>
+            <small data-transfer-source-detail>Orphaned and active accounts are both available in this emergency tool.</small>
+          </label>
+          <div class="pr-transfer-arrow" aria-hidden="true"><i class="fa-solid fa-right-left"></i></div>
+          <label class="pr-field">Destination Account
+            <select name="transferDestination">
+              {{#each transferDestinations}}
+                <option value="{{key}}" data-name="{{name}}" data-balance="{{balance}}" data-orphan="{{orphan}}" data-secondary="{{secondary}}">{{#if orphan}}⚠ {{/if}}{{name}} — {{balance}} pts — {{statusLabel}}</option>
+              {{/each}}
+            </select>
+            <small data-transfer-destination-detail>The destination receives the source balance in full; existing points are added, never overwritten.</small>
+          </label>
+        </div>
+        <div class="pr-transfer-note"><i class="fa-solid fa-shield-halved"></i><span><strong>Recovery mode:</strong> transfers are written to both ledgers with the same Transfer ID. If an orphaned source reaches zero, it is removed from active World data and reduced to a minimal audit tombstone.</span></div>
+        <div class="pr-redeem-preview" data-transfer-preview>Select a source and destination account.</div>
+        <div class="pr-actions-row pr-actions-end"><button type="button" class="pr-primary" data-action="transfer-points"><i class="fa-solid fa-right-left"></i> Transfer Full Balance</button></div>
+      {{else}}
+        <div class="pr-empty-state"><i class="fa-solid fa-right-left"></i><p>No account currently has a non-zero balance available to transfer.</p></div>
       {{/if}}
     </section>
   </main>

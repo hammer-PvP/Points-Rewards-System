@@ -234,3 +234,27 @@
 @media (prefers-reduced-motion: reduce) {
   .pr-vote-cell span { transition: none; }
 }
+
+/* v0.0.2 — Manager transfer/recovery lane. Keep the three daily-use tabs dominant. */
+.pr-manager-shell > .pr-tabs {
+  display: grid;
+  grid-template-columns: 3fr 3fr 3fr 1fr;
+  gap: 4px;
+  overflow: visible;
+}
+.pr-manager-shell > .pr-tabs button { min-width: 0; width: 100%; }
+.pr-manager-shell > .pr-tabs .pr-transfer-tab { padding-inline: 4px; }
+.pr-manager-shell > .pr-tabs .pr-transfer-tab i { margin-right: 0; font-size: 15px; }
+.pr-transfer-grid { display: grid; grid-template-columns: minmax(0,1fr) 48px minmax(0,1fr); gap: 10px; align-items: center; }
+.pr-transfer-arrow { width: 42px; height: 42px; display: grid; place-items: center; justify-self: center; border: 1px solid var(--pr-border); border-radius: 50%; color: var(--pr-gold); background: rgba(70,50,85,.3); }
+.pr-transfer-note { display: flex; gap: 9px; align-items: flex-start; margin-top: 13px; padding: 9px 11px; border: 1px solid rgba(209,176,107,.25); border-radius: 5px; background: rgba(255,255,255,.025); color: var(--pr-muted); font-size: 11px; line-height: 1.4; }
+.pr-transfer-note i { color: var(--pr-gold); margin-top: 2px; }
+.pr-transfer-note strong { color: var(--pr-text); }
+
+@media (max-width: 620px) {
+  .pr-manager-shell > .pr-tabs { grid-template-columns: 3fr 3fr 3fr 1fr; }
+  .pr-manager-shell > .pr-tabs button { padding-inline: 4px; font-size: 0; }
+  .pr-manager-shell > .pr-tabs button i { margin-right: 0; font-size: 14px; }
+  .pr-transfer-grid { grid-template-columns: 1fr; }
+  .pr-transfer-arrow { transform: rotate(90deg); }
+}
