@@ -68,19 +68,30 @@ export class AccountService {
     return null;
   }
 
-  static accountOwner(actor) {
+  static #inferInitialPrimaryUser(actor) {
     if (!actor) return null;
-    const state = WorldStoreService.get();
-    const linked = this.#findSubaccountByActorId(state, actor.id);
-    const linkedUser = linked?.userAccount?.linkedUserId ? game.users.get(linked.userAccount.linkedUserId) : null;
-    const owners = this.nonGMOwners(actor);
-    if (linkedUser && !linkedUser.isGM && owners.some(user => user.id === linkedUser.id)) return linkedUser;
-    if (!owners.length) return null;
     const legacyExplicitId = String(actor.getFlag?.(MODULE_ID, "accountUserId") ?? "");
-    const explicit = owners.find(user => user.id === legacyExplicitId);
-    if (explicit) return explicit;
-    const assigned = owners.find(user => user.character?.id === actor.id);
-    return assigned ?? owners[0];
+    const legacyExplicit = legacyExplicitId ? game.users.get(legacyExplicitId) : null;
+    if (legacyExplicit && !legacyExplicit.isGM) return legacyExplicit;
+    const owners = this.nonGMOwners(actor);
+    return owners.length === 1 ? owners[0] : null;
+  }
+
+  static primaryUser(actor, state = WorldStoreService.get()) {
+    if (!actor) return null;
+    const linked = this.#findSubaccountByActorId(state, actor.id);
+    if (linked) {
+      const primaryId = String(linked.sub?.primaryUserId || "");
+      const user = primaryId ? game.users.get(primaryId) : null;
+      return user && !user.isGM ? user : null;
+    }
+    return this.#inferInitialPrimaryUser(actor);
+  }
+
+  // Backward-compatible alias used by older internal surfaces. In v0.0.3 this means
+  // Points & Rewards Primary User, not transient Foundry ownership.
+  static accountOwner(actor) {
+    return this.primaryUser(actor);
   }
 
   static #newUserAccount(user = null, { syntheticForActor = null } = {}) {
@@ -96,12 +107,17 @@ export class AccountService {
     };
   }
 
-  static #newSubaccount(actor) {
+  static #newSubaccount(actor, primaryUser = null, source = primaryUser ? "auto" : "pending") {
     return {
       id: randomId("prs-actor"),
       linkedActorId: actor?.id ?? "",
       actorNameSnapshot: actor?.name ?? "Unknown Actor",
       actorUuidSnapshot: actor?.uuid ?? (actor?.id ? `Actor.${actor.id}` : ""),
+      primaryUserId: primaryUser?.id ?? "",
+      primaryUserNameSnapshot: primaryUser?.name ?? "",
+      primaryUserSource: source,
+      primaryUserUpdatedAt: Date.now(),
+      primaryUserUpdatedBy: String(game.user?.id ?? ""),
       createdAt: Date.now(),
       lastSeenAt: Date.now(),
       account: emptyLedgerAccount()
@@ -132,24 +148,20 @@ export class AccountService {
     return null;
   }
 
-  static #ensureSubaccount(state, actor, owner = this.accountOwner(actor)) {
+  static #ensureSubaccount(state, actor, primaryUser = undefined) {
     let found = this.#findSubaccountByActorId(state, actor.id);
     if (found) {
       found.sub.actorNameSnapshot = actor.name;
       found.sub.actorUuidSnapshot = actor.uuid ?? `Actor.${actor.id}`;
       found.sub.lastSeenAt = Date.now();
       found.sub.account = normalizeLedgerAccount(found.sub.account);
-      if (owner && found.userAccount.linkedUserId !== owner.id) {
-        // Ownership changes are administrative context. Move the subaccount intact under the newly resolved User account.
-        const targetUserAccount = this.#ensureUserAccount(state, owner);
-        delete found.userAccount.actorSubaccounts[found.sub.id];
-        targetUserAccount.actorSubaccounts[found.sub.id] = found.sub;
-        found = { userAccount: targetUserAccount, sub: found.sub };
-      }
+      // Once a Primary User exists, transient Foundry ownership changes must never re-home it.
       return found;
     }
-    const userAccount = this.#ensureUserAccount(state, owner, { actor });
-    const sub = this.#newSubaccount(actor);
+    const inferred = primaryUser === undefined ? this.#inferInitialPrimaryUser(actor) : primaryUser;
+    const userAccount = this.#ensureUserAccount(state, inferred, { actor });
+    const source = inferred ? "auto" : "pending";
+    const sub = this.#newSubaccount(actor, inferred, source);
     userAccount.actorSubaccounts[sub.id] = sub;
     return { userAccount, sub };
   }
@@ -157,8 +169,181 @@ export class AccountService {
   static async rememberParticipation(actor) {
     if (!actor || !game.user?.isGM) return;
     const state = WorldStoreService.get();
-    this.#ensureSubaccount(state, actor, this.accountOwner(actor));
+    const before = this.#findSubaccountByActorId(state, actor.id);
+    const found = this.#ensureSubaccount(state, actor);
+    if (!before && found.sub.primaryUserId) {
+      this.#recordIdentityChange(state, actor, found.sub, {
+        oldUserId: "",
+        oldUserName: "",
+        newUserId: found.sub.primaryUserId,
+        newUserName: found.sub.primaryUserNameSnapshot,
+        source: "auto"
+      });
+    }
     await WorldStoreService.save(state);
+  }
+
+  static #recordIdentityChange(state, actor, sub, { oldUserId = "", oldUserName = "", newUserId = "", newUserName = "", source = "gm" } = {}) {
+    state.identityChanges = Array.isArray(state.identityChanges) ? state.identityChanges : [];
+    state.identityChanges.push({
+      id: randomId("identity"),
+      timestamp: Date.now(),
+      actorId: actor?.id ?? sub?.linkedActorId ?? "",
+      actorNameSnapshot: actor?.name ?? sub?.actorNameSnapshot ?? "Unknown Actor",
+      actorSubaccountId: sub?.id ?? "",
+      oldUserId: String(oldUserId || ""),
+      oldUserNameSnapshot: String(oldUserName || ""),
+      newUserId: String(newUserId || ""),
+      newUserNameSnapshot: String(newUserName || ""),
+      source: String(source || "gm"),
+      changedBy: String(game.user?.id ?? "")
+    });
+    state.identityChanges = state.identityChanges.slice(-500);
+  }
+
+  static #cleanupSyntheticAccount(state, userAccount) {
+    if (!userAccount?.syntheticForActorId) return;
+    const noSubs = !Object.keys(userAccount.actorSubaccounts ?? {}).length;
+    const noShared = normalizeLedgerAccount(userAccount.shared).balance === 0;
+    if (noSubs && noShared) delete state.userAccounts[userAccount.id];
+  }
+
+  static #rehomeSubaccount(state, found, actor, primaryUser) {
+    const sourceAccount = found.userAccount;
+    const targetAccount = primaryUser
+      ? this.#ensureUserAccount(state, primaryUser)
+      : this.#ensureUserAccount(state, null, { actor });
+    if (sourceAccount.id !== targetAccount.id) {
+      delete sourceAccount.actorSubaccounts[found.sub.id];
+      targetAccount.actorSubaccounts[found.sub.id] = found.sub;
+      this.#cleanupSyntheticAccount(state, sourceAccount);
+    }
+    return { userAccount: targetAccount, sub: found.sub };
+  }
+
+  static async ensureConfiguredPrimaryUsers(config = SettingsService.get()) {
+    if (!game.user?.isGM) return { changed: false, assigned: 0, pending: 0 };
+    const state = WorldStoreService.get();
+    let changed = false;
+    let assigned = 0;
+    let pending = 0;
+
+    for (const actor of this.configuredActors(config)) {
+      let found = this.#findSubaccountByActorId(state, actor.id);
+      if (!found) {
+        const inferred = this.#inferInitialPrimaryUser(actor);
+        found = this.#ensureSubaccount(state, actor, inferred);
+        changed = true;
+        if (inferred) {
+          assigned += 1;
+          this.#recordIdentityChange(state, actor, found.sub, { newUserId: inferred.id, newUserName: inferred.name, source: "auto" });
+        } else pending += 1;
+        continue;
+      }
+
+      found.sub.actorNameSnapshot = actor.name;
+      found.sub.actorUuidSnapshot = actor.uuid ?? `Actor.${actor.id}`;
+      found.sub.lastSeenAt = Date.now();
+      if (!found.sub.primaryUserId && found.sub.primaryUserSource === "pending") {
+        const inferred = this.#inferInitialPrimaryUser(actor);
+        if (inferred) {
+          found = this.#rehomeSubaccount(state, found, actor, inferred);
+          found.sub.primaryUserId = inferred.id;
+          found.sub.primaryUserNameSnapshot = inferred.name;
+          found.sub.primaryUserSource = "auto";
+          found.sub.primaryUserUpdatedAt = Date.now();
+          found.sub.primaryUserUpdatedBy = String(game.user.id || "");
+          this.#recordIdentityChange(state, actor, found.sub, { newUserId: inferred.id, newUserName: inferred.name, source: "auto" });
+          changed = true;
+          assigned += 1;
+        } else pending += 1;
+      }
+    }
+
+    if (changed) await WorldStoreService.save(state);
+    return { changed, assigned, pending };
+  }
+
+  static normalizationRows(config = SettingsService.get()) {
+    const state = WorldStoreService.get();
+    return this.configuredActors(config).map(actor => {
+      const owners = this.nonGMOwners(actor);
+      const found = this.#findSubaccountByActorId(state, actor.id);
+      const primaryUserId = String(found?.sub?.primaryUserId || "");
+      const primary = primaryUserId ? game.users.get(primaryUserId) : null;
+      const snapshot = String(found?.sub?.primaryUserNameSnapshot || "");
+      let status = "Normalized";
+      let statusKey = "normalized";
+      if (primaryUserId && !primary) { status = "Missing User"; statusKey = "missing"; }
+      else if (!primaryUserId && owners.length > 1) { status = "Multiple Owners"; statusKey = "multiple"; }
+      else if (!primaryUserId) { status = "Unassigned"; statusKey = "unassigned"; }
+      return {
+        actorId: actor.id,
+        actorName: actor.name,
+        actorImg: actor.img ?? "icons/svg/mystery-man.svg",
+        owners: owners.map(user => user.name),
+        ownersLabel: owners.map(user => user.name).join(", ") || "No non-GM Owners",
+        ownerCount: owners.length,
+        primaryUserId,
+        primaryUserName: (primary?.name ?? snapshot) || "Unassigned",
+        missingPrimaryUser: Boolean(primaryUserId && !primary),
+        status,
+        statusKey
+      };
+    });
+  }
+
+  static primaryAssignmentPreview(assignments = {}) {
+    const state = WorldStoreService.get();
+    const changes = [];
+    for (const [actorId, desiredIdRaw] of Object.entries(assignments ?? {})) {
+      const actor = game.actors.get(actorId);
+      if (!actor) continue;
+      const found = this.#findSubaccountByActorId(state, actor.id);
+      const oldId = String(found?.sub?.primaryUserId || "");
+      const desiredId = String(desiredIdRaw || "");
+      if (oldId === desiredId) continue;
+      const oldName = oldId ? (game.users.get(oldId)?.name ?? found?.sub?.primaryUserNameSnapshot ?? "Missing User") : "Unassigned";
+      const newName = desiredId ? (game.users.get(desiredId)?.name ?? "Missing User") : "Unassigned";
+      changes.push({ actorId, actorName: actor.name, oldUserId: oldId, oldUserName: oldName, newUserId: desiredId, newUserName: newName });
+    }
+    return changes;
+  }
+
+  static async applyPrimaryAssignments(assignments = {}) {
+    if (!game.user?.isGM) throw new Error("Only a GM can change Primary User assignments.");
+    const state = WorldStoreService.get();
+    const changes = [];
+
+    for (const [actorId, desiredIdRaw] of Object.entries(assignments ?? {})) {
+      const actor = game.actors.get(actorId);
+      if (!actor) continue;
+      const desiredId = String(desiredIdRaw || "");
+      const desiredUser = desiredId ? game.users.get(desiredId) : null;
+      if (desiredId && (!desiredUser || desiredUser.isGM)) throw new Error(`Primary User for ${actor.name} must be an existing non-GM User.`);
+
+      let found = this.#findSubaccountByActorId(state, actor.id);
+      if (!found) found = this.#ensureSubaccount(state, actor, undefined);
+      const oldId = String(found.sub.primaryUserId || "");
+      if (oldId === desiredId) continue;
+      const oldName = oldId ? (game.users.get(oldId)?.name ?? found.sub.primaryUserNameSnapshot ?? "Missing User") : "Unassigned";
+      const newName = desiredUser?.name ?? "Unassigned";
+
+      found = this.#rehomeSubaccount(state, found, actor, desiredUser);
+      found.sub.primaryUserId = desiredUser?.id ?? "";
+      found.sub.primaryUserNameSnapshot = desiredUser?.name ?? "";
+      found.sub.primaryUserSource = desiredUser ? "gm" : "gm-unassigned";
+      found.sub.primaryUserUpdatedAt = Date.now();
+      found.sub.primaryUserUpdatedBy = String(game.user.id || "");
+      this.#recordIdentityChange(state, actor, found.sub, { oldUserId: oldId, oldUserName: oldName, newUserId: desiredId, newUserName: newName, source: "gm" });
+      changes.push({ actorId: actor.id, actorName: actor.name, oldUserId: oldId, oldUserName: oldName, newUserId: desiredId, newUserName: newName });
+    }
+
+    if (changes.length) {
+      await WorldStoreService.save(state);
+      Hooks.callAll(`${MODULE_ID}.primaryUsersChanged`, { changes });
+    }
+    return changes;
   }
 
   static hasWorldAccount(actor) {
@@ -184,7 +369,7 @@ export class AccountService {
 
   static targetFor(actor, method = SettingsService.get().pointMethod) {
     if (!actor) return null;
-    return method === POINT_METHODS.ACCOUNT ? this.accountOwner(actor) : actor;
+    return method === POINT_METHODS.ACCOUNT ? this.primaryUser(actor) : actor;
   }
 
   static accountForActor(actor, method = SettingsService.get().pointMethod) {
@@ -193,12 +378,10 @@ export class AccountService {
     const found = this.#findSubaccountByActorId(state, actor.id);
     if (!found) return emptyLedgerAccount();
     if (method === POINT_METHODS.ACCOUNT) {
-      const owner = this.accountOwner(actor);
-      if (owner && found.userAccount.linkedUserId !== owner.id) {
-        const currentOwnerAccount = this.#findUserAccountByUserId(state, owner.id);
-        return currentOwnerAccount ? normalizeLedgerAccount(currentOwnerAccount.shared) : emptyLedgerAccount();
-      }
-      return normalizeLedgerAccount(found.userAccount.shared);
+      const primaryId = String(found.sub.primaryUserId || "");
+      if (!primaryId) return emptyLedgerAccount();
+      const primaryAccount = this.#findUserAccountByUserId(state, primaryId);
+      return primaryAccount ? normalizeLedgerAccount(primaryAccount.shared) : normalizeLedgerAccount(found.userAccount.shared);
     }
     return normalizeLedgerAccount(found.sub.account);
   }
@@ -226,7 +409,7 @@ export class AccountService {
 
     const rows = new Map();
     for (const actor of actors) {
-      const user = this.accountOwner(actor);
+      const user = this.primaryUser(actor);
       if (!user) continue;
       const row = rows.get(user.id) ?? {
         id: user.id,
@@ -253,11 +436,19 @@ export class AccountService {
 
   static #containerForActor(state, actor, method, { create = false } = {}) {
     let found = this.#findSubaccountByActorId(state, actor?.id);
-    if (!found && create && actor) found = this.#ensureSubaccount(state, actor, this.accountOwner(actor));
+    if (!found && create && actor) found = this.#ensureSubaccount(state, actor);
     if (!found) return null;
     if (method === POINT_METHODS.ACCOUNT) {
-      found.userAccount.shared = normalizeLedgerAccount(found.userAccount.shared);
-      return { container: found.userAccount.shared, userAccount: found.userAccount, sub: found.sub };
+      const primaryId = String(found.sub.primaryUserId || "");
+      if (!primaryId) return null;
+      let primaryAccount = this.#findUserAccountByUserId(state, primaryId);
+      if (!primaryAccount && create) {
+        const primaryUser = game.users.get(primaryId);
+        if (primaryUser && !primaryUser.isGM) primaryAccount = this.#ensureUserAccount(state, primaryUser);
+      }
+      if (!primaryAccount) return null;
+      primaryAccount.shared = normalizeLedgerAccount(primaryAccount.shared);
+      return { container: primaryAccount.shared, userAccount: primaryAccount, sub: found.sub };
     }
     found.sub.account = normalizeLedgerAccount(found.sub.account);
     return { container: found.sub.account, userAccount: found.userAccount, sub: found.sub };
@@ -286,7 +477,7 @@ export class AccountService {
       return { skipped: true, account: foundry.utils.deepClone(account), target: this.targetFor(actor, method) };
     }
 
-    const owner = this.accountOwner(actor);
+    const owner = this.primaryUser(actor, state);
     const before = account.balance;
     const after = before + delta;
     const entry = {
@@ -516,7 +707,7 @@ export class AccountService {
           type: "actor",
           orphan: false,
           name: actor.name,
-          ownerName: this.accountOwner(actor)?.name ?? "No Player Owner",
+          ownerName: this.primaryUser(actor)?.name ?? "No Primary User",
           balance: 0,
           oldId: actor.id,
           lastSeenAt: Date.now(),
@@ -540,7 +731,7 @@ export class AccountService {
       }
       const knownUsers = new Set(rows.filter(row => !row.orphan).map(row => row.oldId));
       for (const actor of this.configuredActors()) {
-        const user = this.accountOwner(actor);
+        const user = this.primaryUser(actor);
         if (!user || knownUsers.has(user.id)) continue;
         knownUsers.add(user.id);
         rows.push({
@@ -574,7 +765,7 @@ export class AccountService {
       if (kind === "actor") {
         const actor = game.actors.get(id);
         if (!actor || !create) return null;
-        const found = this.#ensureSubaccount(state, actor, this.accountOwner(actor));
+        const found = this.#ensureSubaccount(state, actor);
         return { account: found.sub.account, userAccount: found.userAccount, sub: found.sub, actor };
       }
       if (kind === "sub") {

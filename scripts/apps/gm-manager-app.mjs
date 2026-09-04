@@ -31,6 +31,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     if (!game.user.isGM) throw new Error("Only a GM can use Points & Rewards Manager.");
     const config = SettingsService.get();
+    await AccountService.ensureConfiguredPrimaryUsers(config);
     const actors = AccountService.configuredActors(config);
     const accountRows = AccountService.accountRows(config);
     const reasons = SettingsService.reasons(config);
@@ -50,16 +51,16 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
         name: actor.name,
         img: actor.img ?? "icons/svg/mystery-man.svg",
         balance: AccountService.balance(actor),
-        ownerName: AccountService.accountOwner(actor)?.name ?? "No Player Owner"
+        ownerName: AccountService.primaryUser(actor)?.name ?? "No Primary User"
       })),
       redeemActors: actors
-        .filter(actor => config.pointMethod !== POINT_METHODS.ACCOUNT || AccountService.accountOwner(actor))
+        .filter(actor => config.pointMethod !== POINT_METHODS.ACCOUNT || AccountService.primaryUser(actor))
         .map(actor => ({
           id: actor.id,
           name: actor.name,
           img: actor.img ?? "icons/svg/mystery-man.svg",
           balance: AccountService.balance(actor),
-          ownerName: AccountService.accountOwner(actor)?.name ?? "No Player Owner"
+          ownerName: AccountService.primaryUser(actor)?.name ?? "No Primary User"
         })),
       accountRows: accountRows.map(row => ({
         ...row,

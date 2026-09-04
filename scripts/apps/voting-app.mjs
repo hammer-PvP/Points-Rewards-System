@@ -27,7 +27,7 @@ export class VotingApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     const session = VotingService.active();
     if (!session || session.id !== this.sessionId) return { missing: true };
-    const owned = new Set(session.candidates.filter(row => row.ownerUserIds.includes(game.user.id)).map(row => row.actorId));
+    const owned = new Set(session.candidates.filter(row => VotingService.candidatePrimaryUserId(row) === game.user.id).map(row => row.actorId));
     return {
       missing: false,
       session,

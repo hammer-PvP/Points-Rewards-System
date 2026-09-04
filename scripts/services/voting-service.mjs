@@ -17,8 +17,18 @@ export class VotingService {
 
   static eligibleUsers(actors) {
     const ids = new Set();
-    for (const actor of actors) for (const user of AccountService.nonGMOwners(actor)) ids.add(user.id);
+    for (const actor of actors) {
+      const user = AccountService.primaryUser(actor);
+      if (user) ids.add(user.id);
+    }
     return Array.from(ids);
+  }
+
+  static candidatePrimaryUserId(candidate) {
+    if (candidate?.primaryUserId) return String(candidate.primaryUserId);
+    // Compatibility for a vote that happened to remain open during an upgrade from v0.0.2.
+    const legacy = Array.isArray(candidate?.ownerUserIds) ? candidate.ownerUserIds : [];
+    return legacy.length === 1 ? String(legacy[0]) : "";
   }
 
   static async start() {
@@ -29,17 +39,18 @@ export class VotingService {
     if (!config.actorFolderId) throw new Error("Select an Actor folder in Points & Rewards System settings first.");
     const actors = AccountService.configuredActors(config);
     if (actors.length < 2) throw new Error("The selected Actor folder needs at least two Actors for voting.");
-    if (config.pointMethod === "account") {
-      const missingAccount = actors.filter(actor => !AccountService.accountOwner(actor));
-      if (missingAccount.length) throw new Error(`Account-Wide Points requires a non-GM Owner for every voting candidate. Missing: ${missingAccount.map(actor => actor.name).join(", ")}.`);
+    await AccountService.ensureConfiguredPrimaryUsers(config);
+    const missingPrimary = actors.filter(actor => !AccountService.primaryUser(actor));
+    if (missingPrimary.length) {
+      throw new Error(`Every voting Actor needs a Primary User. Review User / Actor Normalization in module settings. Missing: ${missingPrimary.map(actor => actor.name).join(", ")}.`);
     }
     const eligibleUserIds = this.eligibleUsers(actors);
-    if (!eligibleUserIds.length) throw new Error("No non-GM Owner users were found for the Actors in the selected folder.");
+    if (!eligibleUserIds.length) throw new Error("No Primary Users were found for the Actors in the selected folder.");
     if (!config.allowSelfVoting) {
-      const unusable = eligibleUserIds.filter(userId => actors.every(actor => AccountService.nonGMOwners(actor).some(user => user.id === userId)));
+      const unusable = eligibleUserIds.filter(userId => actors.every(actor => AccountService.primaryUser(actor)?.id === userId));
       if (unusable.length) {
         const names = unusable.map(id => game.users.get(id)?.name ?? id).join(", ");
-        throw new Error(`Self voting is disabled, but these Users own every candidate and cannot submit a ballot: ${names}.`);
+        throw new Error(`Self voting is disabled, but these Users are the Primary User for every candidate and cannot submit a ballot: ${names}.`);
       }
     }
     for (const actor of actors) await AccountService.rememberParticipation(actor);
@@ -55,7 +66,7 @@ export class VotingService {
         actorId: actor.id,
         name: actor.name,
         img: actor.img ?? "icons/svg/mystery-man.svg",
-        ownerUserIds: AccountService.nonGMOwners(actor).map(user => user.id)
+        primaryUserId: AccountService.primaryUser(actor)?.id ?? ""
       })),
       eligibleUserIds,
       ballots: {},
@@ -76,7 +87,7 @@ export class VotingService {
 
     const categoryIds = session.categories.map(row => row.id);
     const candidateIds = new Set(session.candidates.map(row => row.actorId));
-    const owned = new Set(session.candidates.filter(row => row.ownerUserIds.includes(game.user.id)).map(row => row.actorId));
+    const owned = new Set(session.candidates.filter(row => this.candidatePrimaryUserId(row) === game.user.id).map(row => row.actorId));
     const clean = {};
     for (const categoryId of categoryIds) {
       const actorId = String(selections?.[categoryId] ?? "");
@@ -243,7 +254,7 @@ export class VotingService {
     const selections = {};
     for (const [categoryId, actorId] of Object.entries(payload.selections ?? {})) {
       if (!categoryIds.has(categoryId) || !candidates.has(actorId)) return;
-      if (!session.allowSelfVoting && candidates.get(actorId).ownerUserIds.includes(userId)) return;
+      if (!session.allowSelfVoting && this.candidatePrimaryUserId(candidates.get(actorId)) === userId) return;
       selections[categoryId] = actorId;
     }
     if (Object.keys(selections).length !== session.categories.length) return;

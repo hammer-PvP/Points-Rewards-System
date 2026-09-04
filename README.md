@@ -1,69 +1,161 @@
 # Points & Rewards System
 
-**Points & Rewards System** is a configurable player-reward framework for Foundry VTT. Its core uses Foundry Actors, Users, ownership, folders, World-scoped module data, sockets, and Chat Messages rather than D&D-specific character data.
+**Points & Rewards System** is a configurable, system-agnostic player reward framework for Foundry VTT. It combines session voting, GM point awards, redeemable rewards, persistent point accounts, transaction history, and recovery tools without depending on D&D-specific character data for its core logic.
 
-## v0.0.2 features
+## Core concept
 
-- GM entry point directly in the **Actor Directory**, styled to match the Hammer-PvP module suite.
-- A selected Actor folder acts only as the current participant filter. Changing the folder never deletes or changes stored points.
-- Two point methods:
-  - **Account-Wide Points** — one shared balance per User.
-  - **Character-Based Points** — independent balance per Actor.
-- Point-method conversion:
-  - Account → Character: equal split across tracked characters, rounded down.
-  - Character → Account: character balances are summed into the User account.
-- Session voting:
-  - 2–8 GM-configured categories.
-  - Full title, compact short label, optional description, and winner point value.
-  - Exactly one vote per category.
-  - Optional self voting (OFF by default).
-  - GM resolves ties when finishing the vote.
-  - Winning point commits are applied automatically.
-- **Give Points**:
-  - single or batch recipients through a checkbox multi-select.
-  - reusable GM-configured reasons and point values.
-  - always-available Custom reason + amount.
-- **Redeem Benefit**:
-  - one Actor at a time.
-  - only preconfigured benefits.
-  - required benefit name, description, and point cost.
-  - optional negative balances, with explicit debt warnings.
-  - redemption is always posted to Chat and immediately deducted.
-- Point ledger with current balance and the last 10 movements for players.
-- D&D5e character sheets receive a Points tab when compatible with the active sheet DOM.
-- Other systems receive a sheet access fallback that opens the same Points ledger.
-- Built-in **Support the Creator → Buy Me a Coffee** settings entry.
+The module uses a GM-selected **Actor Folder** as the current participant filter. Actors directly inside that folder appear in voting, point awards, reward redemption, and User/Actor normalization. Changing the selected folder never moves, resets, or deletes stored points.
 
+Foundry **Ownership** and Points & Rewards **Primary User** are intentionally separate concepts:
 
-### World storage and recovery
+- **Foundry Ownership** determines who can control an Actor in Foundry.
+- **Primary User** is the persistent identity used by Points & Rewards for account grouping and self-voting.
+- An Actor with exactly one non-GM Owner is automatically assigned to that User when first normalized.
+- Actors with multiple Owners or no Owner remain reviewable in **User / Actor Normalization**.
+- Once assigned, Primary User does not change automatically when Foundry ownership permissions change.
+- The GM can change Primary User explicitly without moving any point balance.
 
-- Balances and ledgers are authoritative in hidden **World-scoped Points & Rewards data**; Actor/User documents are identity links rather than the point database.
-- Every User account and Actor subaccount receives a persistent module account ID. Last-known names and Foundry IDs remain available when a linked document disappears.
-- v0.0.1 Actor/User point flags are imported once into World storage and retained as legacy data rather than deleted during migration.
-- Each World-state write is revisioned, protected against stale writes, fingerprinted, re-read for verification, and preceded by a rotating previous-state backup.
-- Missing Actors/Users become recoverable orphan accounts rather than losing their balances.
-- The GM Manager includes a discreet **Transfer Points** tab (`⇄`) for emergency full-balance transfers between compatible active/orphaned accounts. A zeroed orphan is removed from active storage after transfer while a minimal audit tombstone remains.
+This allows temporary Owner access for an absent player's character without changing the character's Points & Rewards identity.
 
-## Default/fallback configuration
+## Point methods
 
-To prevent null/empty operating states:
+### Account-Wide Points
+
+One shared balance belongs to each Primary User. All Actors assigned to that User display and spend from the same account.
+
+Changing an Actor's Primary User makes that Actor use the new User's existing shared account. No points are transferred automatically.
+
+### Character-Based Points
+
+Each Actor subaccount maintains its own independent balance and ledger. Changing Primary User reorganizes the Actor under the new User identity while preserving the Actor's points unchanged.
+
+### Point-method conversion
+
+The GM can switch between point methods:
+
+- **Account-Wide → Character-Based:** the User balance is divided equally across linked characters and rounded down.
+- **Character-Based → Account-Wide:** character balances are summed into the associated User account.
+
+A conversion preview is shown before applying the change.
+
+## Session voting
+
+- GM-configurable voting categories: minimum **2**, maximum **8**.
+- Each category has a full title, compact short label, optional description, and winner point value.
+- Category order in Settings is the left-to-right order in the voting grid.
+- Players cast exactly one vote in every category.
+- Short labels keep the grid compact; mouseover exposes the full category title and description.
+- Actor rows scroll vertically when the participant list is large.
+- **Allow Self Voting** is configurable.
+- When self voting is disabled, every Actor assigned to the voting User as Primary User is blocked for that User.
+- Primary User, not temporary Foundry Ownership, determines voter identity and self-vote restrictions.
+- The GM sees voting progress, can remind pending players, and finalizes the session.
+- Ties are resolved directly by the GM.
+- Winners receive their configured points automatically when voting is finalized.
+- Voting results can be published to Chat.
+
+Voting cannot begin while an Actor in the active participant folder has no valid Primary User.
+
+## Give Points
+
+The GM Manager supports both single-recipient and batch awards.
+
+- Select one or many recipients with a checkbox multi-select.
+- **Select All** and **Clear** shortcuts are available.
+- Reusable Give Point Reasons can be configured with a title, optional description, and fixed positive point value.
+- A **Custom** option is always available for an ad-hoc reason and amount.
+- In Character-Based mode, each selected Actor receives its own commit.
+- In Account-Wide mode, Actors sharing the same Primary User resolve to one shared User account and are not awarded twice by the same batch selection.
+- Every award is recorded in the ledger.
+
+## Redeem Benefits
+
+Reward redemption is intentionally one Actor at a time.
+
+- Benefits must be preconfigured by the GM.
+- Benefit Name, Description, and Cost are mandatory.
+- There is no Custom redemption.
+- By default, only affordable benefits are available.
+- The GM can enable negative balances; debt is shown clearly before confirmation and in the player ledger.
+- Redemption immediately deducts the configured cost.
+- Every redemption is posted to Chat with the Actor, benefit, description, cost, and remaining balance.
+
+## Player point view
+
+Players can see their current balance and the latest **10 point movements**.
+
+- D&D5e character sheets receive an icon-only Points tab using the module's `fa-award` icon when the sheet integration is compatible.
+- Other systems receive a sheet access fallback that opens the same ledger view.
+- The ledger shows positive and negative movements, reasons, dates, and debt state when applicable.
+
+## World storage and data safety
+
+Point data is authoritative in hidden **World-scoped Points & Rewards data** rather than in editable Actor/User point flags.
+
+- Every User account receives a persistent Points & Rewards account ID.
+- Every Actor receives a persistent Points & Rewards subaccount ID.
+- Foundry User/Actor IDs are links, not the permanent identity of the point account.
+- Last-known User and Actor names are retained for recovery and audit context.
+- Primary User changes are stored separately from point transactions and retain an identity-change audit trail.
+- Existing v0.0.1 Actor/User point flags are imported once into World storage and retained as legacy data rather than silently deleted.
+- World data is revisioned and protected against stale writes.
+- Stored state uses integrity fingerprints and post-write verification.
+- The previous persisted World state is retained as a rotating backup before writes, including schema upgrades.
+
+If an Actor or User disappears, its World-stored account can remain recoverable instead of losing the balance immediately.
+
+## Transfer and recovery
+
+The GM Manager includes a deliberately discreet icon-only **Transfer Points** tab (`⇄`). The daily-use tabs keep the layout proportion **30% / 30% / 30% / 10%**.
+
+The Transfer tool is intended for exceptional administrative recovery:
+
+- Source and destination may be active or orphaned compatible accounts.
+- The source's entire balance is transferred.
+- Existing destination points are added to, never overwritten.
+- Source and destination receive linked ledger entries using one Transfer ID.
+- If an orphaned source reaches zero after a successful full transfer, it is removed from active World data.
+- A minimal audit tombstone remains so the transfer origin can still be traced.
+
+Changing Primary User never performs a balance transfer. When a balance itself must move, the GM uses this Transfer tool explicitly.
+
+## Configuration
+
+The module Settings include:
+
+- Player Actor Folder
+- Point Method
+- User / Actor Normalization and Primary User assignment
+- Allow Self Voting
+- Allow Negative Balance
+- Voting Categories
+- Give Point Reasons
+- Redeem Benefits
+- Chat-result and sheet-display options
+
+To prevent unusable null configuration states:
 
 - With no saved Give Point Reasons, an editable symbolic **Default +1** reason is shown.
 - With no saved Redeem Benefits, an editable symbolic **Default / 1 point** benefit is shown.
-- Once the GM saves a real entry, the symbolic fallback is no longer displayed.
-- Voting starts with two editable placeholder categories because the voting grid requires at least two categories.
+- Once a real entry is saved, the symbolic fallback disappears.
+- Voting starts with two editable placeholder categories because at least two categories are required.
+
+## GM access and interface conventions
+
+- The GM opens the main Manager from a **Points & Rewards** button in the Actor Directory.
+- The UI follows the visual and behavioral conventions of the Hammer-PvP Foundry module suite.
+- Built-in Foundry / Font Awesome icons are used instead of external icon libraries.
+- Tabs and controls preserve their working state instead of aggressively resetting the whole window.
+- Search/filter behavior, when present, should not trigger disruptive full rerenders on every typed character.
+- **Support the Creator → Buy Me a Coffee** remains separate from the functional Manager.
 
 ## Compatibility
 
 - Foundry VTT: targeted for **v13 and v14**.
-- Core logic is system-agnostic.
-- D&D5e receives the initial dedicated sheet-tab integration.
-
-The v0.0.2 package has been statically validated, but the new World-storage migration and recovery workflow should still be live-tested in the target Foundry worlds before being promoted as a stable public release.
+- Core point, voting, account, and recovery logic is system-agnostic.
+- D&D5e receives the initial dedicated character-sheet integration.
 
 ## Support
-
-If these tools help your table and you want to support continued development:
 
 **Buy Me a Coffee:** https://buymeacoffee.com/hammer.pvp
 

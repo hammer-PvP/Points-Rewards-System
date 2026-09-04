@@ -27,13 +27,24 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
 
   async _prepareContext() {
     const config = SettingsService.get();
+    if (game.user?.isGM) await AccountService.ensureConfiguredPrimaryUsers(config);
     const actorFolders = game.folders
       .filter(folder => folder.type === "Actor")
       .sort((a, b) => a.name.localeCompare(b.name))
       .map(folder => ({ id: folder.id, name: folder.name, selected: folder.id === config.actorFolderId }));
+    const playerUsers = game.users.filter(user => !user.isGM).sort((a, b) => a.name.localeCompare(b.name));
+    const normalizationRows = AccountService.normalizationRows(config).map(row => {
+      const options = playerUsers.map(user => ({ id: user.id, name: user.name, selected: user.id === row.primaryUserId }));
+      if (row.missingPrimaryUser && row.primaryUserId && !options.some(option => option.id === row.primaryUserId)) {
+        options.unshift({ id: row.primaryUserId, name: `⚠ Missing — ${row.primaryUserName}`, selected: true, missing: true });
+      }
+      const statusIcon = row.statusKey === "normalized" ? "fa-circle-check" : row.statusKey === "multiple" ? "fa-users" : row.statusKey === "missing" ? "fa-triangle-exclamation" : "fa-circle-question";
+      return { ...row, userOptions: options, unassignedSelected: !row.primaryUserId, statusIcon };
+    });
     return {
       config,
       actorFolders,
+      normalizationRows,
       categories: config.categories.map((row, index) => ({ ...row, position: index + 1 })),
       reasons: SettingsService.reasons(config),
       benefits: SettingsService.benefits(config),
@@ -78,7 +89,7 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
   }
 
   #setTab(tab, { focus = true } = {}) {
-    const allowed = new Set(["general", "voting", "reasons", "benefits"]);
+    const allowed = new Set(["general", "identity", "voting", "reasons", "benefits"]);
     this.activeTab = allowed.has(tab) ? tab : "general";
     for (const button of this.element.querySelectorAll("[data-settings-tab]")) {
       const active = button.dataset.settingsTab === this.activeTab;
@@ -237,6 +248,13 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
     };
   }
 
+  #serializePrimaryAssignments() {
+    return Object.fromEntries(Array.from(this.element.querySelectorAll("[data-normalization-row]")).map(row => [
+      String(row.dataset.actorId || ""),
+      String(row.querySelector('[name="primaryUser"]')?.value ?? "")
+    ]).filter(([actorId]) => actorId));
+  }
+
   #validate(config) {
     if (config.categories.length < MIN_CATEGORIES || config.categories.length > MAX_CATEGORIES) return `Voting requires ${MIN_CATEGORIES}–${MAX_CATEGORIES} categories.`;
     if (config.categories.some(row => !row.title || !row.shortLabel)) return "Every voting category needs a Title and Short Label.";
@@ -250,12 +268,25 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
     if (this._busy) return;
     const previous = SettingsService.get();
     const raw = this.#serialize();
+    const primaryAssignments = this.#serializePrimaryAssignments();
     const error = this.#validate(raw);
     if (error) return ui.notifications.warn(error);
     const next = SettingsService.normalize(raw);
 
     try {
       this._busy = true;
+      const primaryChanges = AccountService.primaryAssignmentPreview(primaryAssignments);
+      if (primaryChanges.length) {
+        const rows = primaryChanges.map(change => `<li><strong>${htmlEscape(change.actorName)}</strong>: ${htmlEscape(change.oldUserName)} → ${htmlEscape(change.newUserName)}</li>`).join("");
+        const accepted = await confirmDialog({
+          title: "Change Primary User Assignments?",
+          content: `<p>Primary User controls point-account identity and self-voting. Foundry Ownership remains unchanged.</p><ul>${rows}</ul><p><strong>No point balance is transferred by this operation.</strong> In Account-Wide mode, the Actor will begin using the newly assigned User's existing shared balance.</p>`,
+          yes: "Apply Primary Users",
+          danger: false
+        });
+        if (!accepted) return;
+        await AccountService.applyPrimaryAssignments(primaryAssignments);
+      }
       if (previous.pointMethod !== next.pointMethod) {
         for (const actor of actorFolderActors(next.actorFolderId)) await AccountService.rememberParticipation(actor);
         const preview = AccountService.migrationPreview(previous.pointMethod, next.pointMethod);
@@ -271,6 +302,7 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
         await AccountService.migrate(previous.pointMethod, next.pointMethod);
       }
       await SettingsService.set(next);
+      await AccountService.ensureConfiguredPrimaryUsers(next);
       ui.notifications.info("Points & Rewards System settings saved.");
       await this.close();
     } catch (saveError) {

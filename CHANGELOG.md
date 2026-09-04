@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.0.3
+
+Primary User identity and User/Actor normalization patch.
+
+### Added
+
+- New **User / Actor Normalization** section in module Settings.
+- Persistent **Primary User** assignment for every tracked Actor.
+- Automatic initial assignment when an Actor has exactly one non-GM Owner.
+- Review states for `Normalized`, `Multiple Owners`, `Unassigned`, and missing-User links.
+- GM-editable Primary User dropdowns using the non-GM Users in the World.
+- World-stored Primary User identity snapshots and an identity-change audit trail.
+- Safe World schema upgrade from v0.0.2 that verifies the previous persisted fingerprint before normalizing the new schema and preserves the prior stored state as backup.
+
+### Changed
+
+- Foundry Ownership now controls only Foundry Actor access; Points & Rewards identity is controlled by Primary User.
+- Temporary Owner changes no longer reassign point accounts or change self-voting identity.
+- Account-Wide accounts are grouped strictly by Primary User.
+- Character-Based Actor balances remain attached to the Actor when Primary User changes.
+- Changing Primary User never transfers point balances.
+- Session voting eligibility and self-vote blocking now use Primary User instead of current Actor Owners.
+- Voting requires every Actor in the active voting folder to have a valid Primary User.
+- Account-Wide batch awards deduplicate recipients by Primary User account.
+- README is now maintained as the current module capability overview; version-by-version history remains in this CHANGELOG.
+
 ## 0.0.2
 
 World-storage and account-recovery architecture patch.

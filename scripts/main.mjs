@@ -25,7 +25,7 @@ Hooks.once("init", () => {
   game.settings.registerMenu(MODULE_ID, "configuration", {
     name: "Points & Rewards System Settings",
     label: "Configure Points & Rewards",
-    hint: "Configure the Actor folder, point method, voting categories, GM award reasons, and redeemable benefits.",
+    hint: "Configure the Actor folder, Primary User normalization, point method, voting categories, GM award reasons, and redeemable benefits.",
     icon: "fa-solid fa-sliders",
     type: PointsRewardsSettingsApp,
     restricted: true
@@ -37,7 +37,10 @@ Hooks.once("ready", async () => {
   if (game.user?.isGM) {
     try {
       const integrity = await WorldStoreService.initialize();
-      if (integrity?.ok !== false) await AccountService.migrateLegacyFlags();
+      if (integrity?.ok !== false) {
+        await AccountService.migrateLegacyFlags();
+        await AccountService.ensureConfiguredPrimaryUsers();
+      }
     } catch (error) {
       console.error(`${MODULE_ID} | World storage initialization failed.`, error);
       ui.notifications.error(`Points & Rewards world storage could not initialize: ${error.message}`, { permanent: true });
@@ -88,6 +91,7 @@ Hooks.on("updateSetting", setting => {
 
 Hooks.on(`${MODULE_ID}.pointsChanged`, ({ actor }) => refreshVisiblePointSurfaces(actor));
 Hooks.on(`${MODULE_ID}.methodMigrated`, () => refreshVisiblePointSurfaces());
+Hooks.on(`${MODULE_ID}.primaryUsersChanged`, () => refreshVisiblePointSurfaces());
 Hooks.on(`${MODULE_ID}.voteUpdated`, () => {
   if (GMManagerApp.current?.rendered && !GMManagerApp.current._busy) void GMManagerApp.current.render({ force: true });
 });

@@ -5,6 +5,7 @@
 
   <nav class="pr-tabs pr-settings-tabs">
     <button type="button" data-settings-tab="general"><i class="fa-solid fa-gear"></i> General</button>
+    <button type="button" data-settings-tab="identity"><i class="fa-solid fa-link"></i> User / Actor</button>
     <button type="button" data-settings-tab="voting"><i class="fa-solid fa-check-to-slot"></i> Voting Categories</button>
     <button type="button" data-settings-tab="reasons"><i class="fa-solid fa-circle-plus"></i> Give Point Reasons</button>
     <button type="button" data-settings-tab="benefits"><i class="fa-solid fa-gift"></i> Redeem Benefits</button>
@@ -26,7 +27,7 @@
       <div class="pr-settings-card">
         <h3>Point Method</h3>
         <div class="pr-method-grid">
-          <label class="pr-method-card"><input type="radio" name="pointMethod" value="account" {{#if accountSelected}}checked{{/if}}><span><strong>Account-Wide Points</strong><small>One shared point balance per User. Their linked characters display and spend from the same account.</small></span></label>
+          <label class="pr-method-card"><input type="radio" name="pointMethod" value="account" {{#if accountSelected}}checked{{/if}}><span><strong>Account-Wide Points</strong><small>One shared point balance per User. Actors assigned to that Primary User display and spend from the same account.</small></span></label>
           <label class="pr-method-card"><input type="radio" name="pointMethod" value="character" {{#if characterSelected}}checked{{/if}}><span><strong>Character-Based Points</strong><small>Every Actor maintains an independent balance and point history.</small></span></label>
         </div>
         <p class="pr-setting-note"><i class="fa-solid fa-shuffle"></i> Changing method triggers a balance conversion preview. Account → Character divides equally and rounds down; Character → Account sums character balances.</p>
@@ -39,9 +40,34 @@
       </div>
     </section>
 
+    <section data-settings-panel="identity" hidden>
+      <div class="pr-section-header"><div><h2>User / Actor Normalization</h2><p>Foundry Ownership controls who can operate an Actor. Primary User is the persistent Points & Rewards identity used for account grouping and self-voting.</p></div></div>
+      {{#if normalizationRows.length}}
+        <div class="pr-normalization-head" aria-hidden="true"><span>Actor</span><span>Foundry Owners</span><span>Primary User</span><span>Status</span></div>
+        <div class="pr-normalization-list">
+          {{#each normalizationRows}}
+            <article class="pr-normalization-row" data-normalization-row data-actor-id="{{actorId}}">
+              <div class="pr-normalization-actor"><img src="{{actorImg}}" alt=""><strong>{{actorName}}</strong></div>
+              <div class="pr-normalization-owners"><span>{{ownersLabel}}</span>{{#if ownerCount}}<small>{{ownerCount}} current non-GM Owner(s)</small>{{/if}}</div>
+              <label class="pr-field pr-primary-user-field"><span class="sr-only">Primary User for {{actorName}}</span>
+                <select name="primaryUser">
+                  <option value="" {{#if unassignedSelected}}selected{{/if}}>— Unassigned —</option>
+                  {{#each userOptions}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+                </select>
+              </label>
+              <div class="pr-normalization-status pr-status-{{statusKey}}"><i class="fa-solid {{statusIcon}}"></i><span>{{status}}</span></div>
+            </article>
+          {{/each}}
+        </div>
+        <p class="pr-setting-note"><i class="fa-solid fa-shield-halved"></i> Once assigned, Primary User never changes automatically when Foundry Owners are added or removed. Changing Primary User does not move point balances; use the Transfer tool only when a balance itself must move.</p>
+      {{else}}
+        <div class="pr-empty-state"><i class="fa-solid fa-folder-open"></i><p>No Actors are available in the currently selected Player Actor Folder. Save a folder selection first, then reopen settings to normalize its Actors.</p></div>
+      {{/if}}
+    </section>
+
     <section data-settings-panel="voting" hidden>
       <div class="pr-section-header"><div><h2>Voting Categories</h2><p>Minimum {{minCategories}}, maximum {{maxCategories}}. The order below is the grid order from left to right: #1 → #8.</p></div><button type="button" data-action="add-category"><i class="fa-solid fa-plus"></i> Add Category</button></div>
-      <div class="pr-settings-card pr-toggle-list"><label><input type="checkbox" name="allowSelfVoting" {{#if config.allowSelfVoting}}checked{{/if}}><span><strong>Allow Self Voting</strong><small>When disabled, every Actor owned by the voting User is visible but blocked in the voting matrix.</small></span></label></div>
+      <div class="pr-settings-card pr-toggle-list"><label><input type="checkbox" name="allowSelfVoting" {{#if config.allowSelfVoting}}checked{{/if}}><span><strong>Allow Self Voting</strong><small>When disabled, every Actor assigned to the voting User as Primary User is visible but blocked in the voting matrix.</small></span></label></div>
       <div class="pr-config-list" data-category-list>
         {{#each categories}}
           <article class="pr-config-row pr-category-row" data-config-row="category" data-id="{{id}}">
