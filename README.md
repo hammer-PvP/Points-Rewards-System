@@ -99,7 +99,9 @@ Point data is authoritative in hidden **World-scoped Points & Rewards data** rat
 - Primary User changes are stored separately from point transactions and retain an identity-change audit trail.
 - Existing v0.0.1 Actor/User point flags are imported once into World storage and retained as legacy data rather than silently deleted.
 - World data is revisioned and protected against stale writes.
-- Stored state uses integrity fingerprints and post-write verification.
+- Stored state uses deterministic client-independent integrity fingerprints and post-write verification.
+- Legacy v0.0.2/v0.0.3 SHA-256 or fallback FNV fingerprints are verified using their original format and then normalized to the portable v0.1.0 format.
+- Integrity verification no longer changes behavior based on browser WebCrypto availability, secure context, or Foundry Desktop versus an external browser.
 - The previous persisted World state is retained as a rotating backup before writes, including schema upgrades.
 
 If an Actor or User disappears, its World-stored account can remain recoverable instead of losing the balance immediately.
@@ -139,6 +141,29 @@ To prevent unusable null configuration states:
 - With no saved Redeem Benefits, an editable symbolic **Default / 1 point** benefit is shown.
 - Once a real entry is saved, the symbolic fallback disappears.
 - Voting starts with two editable placeholder categories because at least two categories are required.
+
+## Portable ecosystem configuration
+
+Voting Categories, Give Point Reasons, and Redeem Benefits can be exported to and imported from JSON without moving any campaign identity or point data.
+
+- **Export All / Import All** handles all three reusable ecosystem sections in one file.
+- Each of the three Settings sections also has its own **Export / Import** controls.
+- An individual importer can read either its matching section export or an Export All file.
+- Imports support **Replace** or **Merge**.
+- Merge keeps current entries and adds non-duplicates; Voting Categories still enforce the module maximum of 8.
+- Imported changes remain in the Settings window until the GM clicks **Save Settings**, allowing review before they are committed.
+- Export files are schema-versioned and validated before being applied.
+
+Portable exports intentionally exclude:
+
+- Actors and Users
+- Primary User assignments
+- Actor Folder selection
+- Account-Wide / Character-Based balances
+- Ledgers and point transactions
+- World State, backups, orphaned accounts, and recovery data
+
+This makes it safe to build a reward ecosystem in a test World and reuse it in another World without carrying player or campaign data with it.
 
 ## GM access and interface conventions
 

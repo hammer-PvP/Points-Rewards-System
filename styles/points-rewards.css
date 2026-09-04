@@ -301,3 +301,15 @@
   .pr-normalization-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
   .pr-normalization-status { justify-self: end; }
 }
+
+/* v0.1.0 — portable ecosystem configuration. */
+.pr-section-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.pr-section-actions button { white-space: nowrap; }
+.pr-portable-config { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pr-portable-config h3 { margin: 0 0 5px; color: var(--pr-gold); }
+.pr-portable-config p { margin: 0; color: var(--pr-muted); font-size: 11px; line-height: 1.35; max-width: 590px; }
+.pr-config-transfer-actions { display: flex; gap: 7px; flex: 0 0 auto; }
+@media (max-width: 760px) {
+  .pr-section-header, .pr-portable-config { align-items: stretch; flex-direction: column; }
+  .pr-section-actions, .pr-config-transfer-actions { justify-content: flex-start; }
+}

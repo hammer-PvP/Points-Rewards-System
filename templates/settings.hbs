@@ -38,6 +38,14 @@
         <label><input type="checkbox" name="postVotingResultsToChat" {{#if config.postVotingResultsToChat}}checked{{/if}}><span><strong>Post Voting Results to Chat</strong><small>Publish category winners and awarded points when the GM finalizes voting.</small></span></label>
         <label><input type="checkbox" name="showSheetPoints" {{#if config.showSheetPoints}}checked{{/if}}><span><strong>Show Points on Actor Sheets</strong><small>D&D5e character sheets receive a Points tab. Other systems use a sheet access fallback when a compatible tab cannot be injected.</small></span></label>
       </div>
+
+      <div class="pr-settings-card pr-portable-config">
+        <div><h3>Portable Ecosystem Configuration</h3><p>Export or import Voting Categories, Give Point Reasons, and Redeem Benefits together. Player identities, Primary Users, balances, ledgers, folders, and World data are never included.</p></div>
+        <div class="pr-config-transfer-actions">
+          <button type="button" data-export-config="all"><i class="fa-solid fa-file-export"></i> Export All</button>
+          <button type="button" data-import-config="all"><i class="fa-solid fa-file-import"></i> Import All</button>
+        </div>
+      </div>
     </section>
 
     <section data-settings-panel="identity" hidden>
@@ -66,7 +74,7 @@
     </section>
 
     <section data-settings-panel="voting" hidden>
-      <div class="pr-section-header"><div><h2>Voting Categories</h2><p>Minimum {{minCategories}}, maximum {{maxCategories}}. The order below is the grid order from left to right: #1 → #8.</p></div><button type="button" data-action="add-category"><i class="fa-solid fa-plus"></i> Add Category</button></div>
+      <div class="pr-section-header"><div><h2>Voting Categories</h2><p>Minimum {{minCategories}}, maximum {{maxCategories}}. The order below is the grid order from left to right: #1 → #8.</p></div><div class="pr-section-actions"><button type="button" data-export-config="voting-categories"><i class="fa-solid fa-file-export"></i> Export</button><button type="button" data-import-config="voting-categories"><i class="fa-solid fa-file-import"></i> Import</button><button type="button" data-action="add-category"><i class="fa-solid fa-plus"></i> Add Category</button></div></div>
       <div class="pr-settings-card pr-toggle-list"><label><input type="checkbox" name="allowSelfVoting" {{#if config.allowSelfVoting}}checked{{/if}}><span><strong>Allow Self Voting</strong><small>When disabled, every Actor assigned to the voting User as Primary User is visible but blocked in the voting matrix.</small></span></label></div>
       <div class="pr-config-list" data-category-list>
         {{#each categories}}
@@ -84,7 +92,7 @@
     </section>
 
     <section data-settings-panel="reasons" hidden>
-      <div class="pr-section-header"><div><h2>Give Point Reasons</h2><p>Reusable positive point awards for the GM Manager. A Custom option is always available there.</p></div><button type="button" data-action="add-reason"><i class="fa-solid fa-plus"></i> Add Reason</button></div>
+      <div class="pr-section-header"><div><h2>Give Point Reasons</h2><p>Reusable positive point awards for the GM Manager. A Custom option is always available there.</p></div><div class="pr-section-actions"><button type="button" data-export-config="give-point-reasons"><i class="fa-solid fa-file-export"></i> Export</button><button type="button" data-import-config="give-point-reasons"><i class="fa-solid fa-file-import"></i> Import</button><button type="button" data-action="add-reason"><i class="fa-solid fa-plus"></i> Add Reason</button></div></div>
       <div class="pr-config-list" data-reason-list>
         {{#each reasons}}
           <article class="pr-config-row" data-config-row="reason" data-id="{{id}}" data-virtual="{{#if virtual}}true{{else}}false{{/if}}">
@@ -99,7 +107,7 @@
     </section>
 
     <section data-settings-panel="benefits" hidden>
-      <div class="pr-section-header"><div><h2>Redeem Benefits</h2><p>Benefits are always preconfigured. There is no Custom redemption in the GM Manager.</p></div><button type="button" data-action="add-benefit"><i class="fa-solid fa-plus"></i> Add Benefit</button></div>
+      <div class="pr-section-header"><div><h2>Redeem Benefits</h2><p>Benefits are always preconfigured. There is no Custom redemption in the GM Manager.</p></div><div class="pr-section-actions"><button type="button" data-export-config="redeem-benefits"><i class="fa-solid fa-file-export"></i> Export</button><button type="button" data-import-config="redeem-benefits"><i class="fa-solid fa-file-import"></i> Import</button><button type="button" data-action="add-benefit"><i class="fa-solid fa-plus"></i> Add Benefit</button></div></div>
       <div class="pr-config-list" data-benefit-list>
         {{#each benefits}}
           <article class="pr-config-row" data-config-row="benefit" data-id="{{id}}" data-virtual="{{#if virtual}}true{{else}}false{{/if}}">

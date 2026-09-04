@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.1.0
+
+Portable configuration and cross-client World-integrity stabilization release.
+
+### Added
+
+- JSON **Export All / Import All** for Voting Categories, Give Point Reasons, and Redeem Benefits.
+- Individual JSON Export / Import controls in each of those three Settings sections.
+- Schema-versioned portable ecosystem export format that deliberately excludes Users, Actors, Primary User assignments, point accounts, ledgers, folders, World State, and recovery data.
+- Import validation before any configuration is applied.
+- Import modes for **Replace** and **Merge**; merge deduplicates reusable entries and enforces the 8-category voting limit.
+- Imported configuration remains unsaved in the current Settings window until the GM reviews it and clicks **Save Settings**.
+
+### Fixed
+
+- Fixed false `world-data integrity mismatch` warnings when the same World was opened through different client environments such as Foundry Desktop and external browsers.
+- Integrity verification no longer chooses a different fingerprint algorithm based on WebCrypto availability or secure-context behavior.
+- Legacy v0.0.2/v0.0.3 SHA-256 fingerprints and `fnv1a-*` fallback fingerprints are verified deterministically and upgraded to the portable v0.1.0 integrity format without discarding World data.
+
+### Changed
+
+- New World writes use a deterministic `FNV-1A-32` integrity fingerprint implemented entirely by the module, producing the same result in Foundry Desktop, Chrome-family browsers, Firefox-family browsers, HTTP, HTTPS, and localhost contexts.
+- World schema advanced to version 3 to normalize portable integrity metadata while preserving the previous persisted state as the rotating backup during upgrade.
+- README remains a current capability overview; release-by-release history remains in this CHANGELOG.
+
 ## 0.0.3
 
 Primary User identity and User/Actor normalization patch.

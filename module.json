@@ -1,8 +1,8 @@
 {
   "id": "points-and-rewards",
   "title": "Points & Rewards System",
-  "description": "A configurable, system-agnostic player points and rewards framework for Foundry VTT with session voting, persistent Primary User identity, GM batch point awards, redeemable benefits, World-stored Account-Wide or Character-Based balances, recovery transfers, integrity safeguards, chat announcements, and transaction history.",
-  "version": "0.0.3",
+  "description": "A configurable, system-agnostic player points and rewards framework for Foundry VTT with session voting, persistent Primary User identity, GM batch point awards, redeemable benefits, portable ecosystem configuration, World-stored Account-Wide or Character-Based balances, recovery transfers, integrity safeguards, chat announcements, and transaction history.",
+  "version": "0.1.0",
   "authors": [
     {
       "name": "Raphael Andrade"
@@ -35,8 +35,8 @@
   "readme": "README.md",
   "url": "https://github.com/hammer-PvP/Points-Rewards-System",
   "manifest": "https://github.com/hammer-PvP/Points-Rewards-System/releases/latest/download/module.json",
-  "download": "https://github.com/hammer-PvP/Points-Rewards-System/releases/download/v0.0.3/Points-Rewards-system.zip",
+  "download": "https://github.com/hammer-PvP/Points-Rewards-System/releases/download/v0.1.0/Points-Rewards-system.zip",
   "bugs": "https://github.com/hammer-PvP/Points-Rewards-System/issues",
-  "changelog": "https://github.com/hammer-PvP/Points-Rewards-System/releases/tag/v0.0.3",
+  "changelog": "https://github.com/hammer-PvP/Points-Rewards-System/releases/tag/v0.1.0",
   "socket": true
 }

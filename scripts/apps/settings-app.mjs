@@ -1,7 +1,8 @@
 import { MAX_CATEGORIES, MIN_CATEGORIES, MODULE_ID, POINT_METHODS } from "../constants.mjs";
 import { AccountService } from "../services/account-service.mjs";
 import { SettingsService } from "../services/settings-service.mjs";
-import { actorFolderActors, confirmDialog, htmlEscape, randomId } from "../utils.mjs";
+import { ECOSYSTEM_EXPORT_TYPES, EcosystemTransferService } from "../services/ecosystem-transfer-service.mjs";
+import { actorFolderActors, chooseJsonFile, confirmDialog, downloadJsonFile, htmlEscape, importModeDialog, randomId } from "../utils.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -73,6 +74,15 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
     root.querySelector('[data-action="add-category"]')?.addEventListener("click", event => { event.preventDefault(); this.#addCategory(); });
     root.querySelector('[data-action="add-reason"]')?.addEventListener("click", event => { event.preventDefault(); this.#addReason(); });
     root.querySelector('[data-action="add-benefit"]')?.addEventListener("click", event => { event.preventDefault(); this.#addBenefit(); });
+
+    root.querySelectorAll("[data-export-config]").forEach(button => button.addEventListener("click", event => {
+      event.preventDefault();
+      this.#exportConfig(button.dataset.exportConfig);
+    }));
+    root.querySelectorAll("[data-import-config]").forEach(button => button.addEventListener("click", event => {
+      event.preventDefault();
+      void this.#importConfig(button.dataset.importConfig);
+    }));
 
     root.addEventListener("click", event => {
       const button = event.target.closest?.("[data-row-action]");
@@ -206,6 +216,86 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
       <label class="pr-points-field">Cost<input name="benefitCost" type="number" min="1" step="1" value="${Math.max(1, Number(row.cost) || 1)}" required></label>
       <div class="pr-row-actions"><button type="button" data-row-action="up" data-tooltip="Move up"><i class="fa-solid fa-arrow-up"></i></button><button type="button" data-row-action="down" data-tooltip="Move down"><i class="fa-solid fa-arrow-down"></i></button><button type="button" data-row-action="delete" data-tooltip="Delete benefit"><i class="fa-solid fa-trash"></i></button></div>
     </article>`;
+  }
+
+  #exportConfig(type) {
+    try {
+      const config = this.#serialize();
+      const payload = EcosystemTransferService.build(type, config);
+      const names = {
+        [ECOSYSTEM_EXPORT_TYPES.ALL]: "points-rewards-ecosystem.json",
+        [ECOSYSTEM_EXPORT_TYPES.VOTING]: "points-rewards-voting-categories.json",
+        [ECOSYSTEM_EXPORT_TYPES.REASONS]: "points-rewards-give-point-reasons.json",
+        [ECOSYSTEM_EXPORT_TYPES.BENEFITS]: "points-rewards-redeem-benefits.json"
+      };
+      downloadJsonFile(payload, names[type] ?? "points-rewards-config.json");
+      ui.notifications.info("Points & Rewards configuration exported.");
+    } catch (error) {
+      console.error(`${MODULE_ID} | Configuration export failed.`, error);
+      ui.notifications.error(error.message || "Points & Rewards configuration export failed.");
+    }
+  }
+
+  async #importConfig(type) {
+    if (this._busy) return;
+    const picked = await chooseJsonFile();
+    if (!picked) return;
+    if (picked.error) return ui.notifications.error(`Could not read JSON file: ${picked.error.message}`);
+    try {
+      const parsed = EcosystemTransferService.parse(picked.data, type);
+      const labels = {
+        [ECOSYSTEM_EXPORT_TYPES.ALL]: "Voting Categories, Give Point Reasons, and Redeem Benefits",
+        [ECOSYSTEM_EXPORT_TYPES.VOTING]: "Voting Categories",
+        [ECOSYSTEM_EXPORT_TYPES.REASONS]: "Give Point Reasons",
+        [ECOSYSTEM_EXPORT_TYPES.BENEFITS]: "Redeem Benefits"
+      };
+      const mode = await importModeDialog(labels[type] ?? "configuration");
+      if (!mode) return;
+      this._busy = true;
+      if (type === ECOSYSTEM_EXPORT_TYPES.ALL) {
+        this.#applyImportedSection(ECOSYSTEM_EXPORT_TYPES.VOTING, parsed.data.votingCategories, mode);
+        this.#applyImportedSection(ECOSYSTEM_EXPORT_TYPES.REASONS, parsed.data.givePointReasons, mode);
+        this.#applyImportedSection(ECOSYSTEM_EXPORT_TYPES.BENEFITS, parsed.data.redeemBenefits, mode);
+      } else {
+        const key = type === ECOSYSTEM_EXPORT_TYPES.VOTING ? "votingCategories" : type === ECOSYSTEM_EXPORT_TYPES.REASONS ? "givePointReasons" : "redeemBenefits";
+        this.#applyImportedSection(type, parsed.data[key], mode);
+      }
+      ui.notifications.info(`Imported ${labels[type] ?? "Points & Rewards configuration"}. Review and click Save Settings to commit the changes.`);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Configuration import failed.`, error);
+      ui.notifications.error(error.message || "Points & Rewards configuration import failed.", { permanent: true });
+    } finally {
+      this._busy = false;
+    }
+  }
+
+  #applyImportedSection(type, importedRows, mode) {
+    if (type === ECOSYSTEM_EXPORT_TYPES.VOTING) {
+      const list = this.element.querySelector("[data-category-list]");
+      if (!list) throw new Error("Voting Categories list is unavailable.");
+      const current = this.#serialize().categories.map(row => ({ title: row.title, shortLabel: row.shortLabel, description: row.description, points: row.points }));
+      const rows = mode === "merge" ? EcosystemTransferService.merge(type, current, importedRows) : importedRows;
+      list.innerHTML = rows.map(row => this.#categoryRow({ ...row, id: randomId("category") })).join("");
+      this.#renumberCategories();
+      return;
+    }
+    if (type === ECOSYSTEM_EXPORT_TYPES.REASONS) {
+      const list = this.element.querySelector("[data-reason-list]");
+      if (!list) throw new Error("Give Point Reasons list is unavailable.");
+      const current = this.#serialize().giveReasons.map(row => ({ title: row.title, description: row.description, points: row.points }));
+      const rows = mode === "merge" ? EcosystemTransferService.merge(type, current, importedRows) : importedRows;
+      list.innerHTML = rows.length ? rows.map(row => this.#reasonRow({ ...row, id: randomId("reason"), virtual: false })).join("") : "";
+      if (!rows.length) this.#addReason({ fallback: true });
+      return;
+    }
+    if (type === ECOSYSTEM_EXPORT_TYPES.BENEFITS) {
+      const list = this.element.querySelector("[data-benefit-list]");
+      if (!list) throw new Error("Redeem Benefits list is unavailable.");
+      const current = this.#serialize().benefits.map(row => ({ name: row.name, description: row.description, cost: row.cost }));
+      const rows = mode === "merge" ? EcosystemTransferService.merge(type, current, importedRows) : importedRows;
+      list.innerHTML = rows.length ? rows.map(row => this.#benefitRow({ ...row, id: randomId("benefit"), virtual: false })).join("") : "";
+      if (!rows.length) this.#addBenefit({ fallback: true });
+    }
   }
 
   #serialize() {
