@@ -1,0 +1,29 @@
+<div class="pr-shell pr-vote-shell">
+  {{#if missing}}
+    <div class="pr-empty-state"><i class="fa-solid fa-ban"></i><p>This voting session is no longer available.</p></div>
+  {{else}}
+    <header class="pr-app-header pr-vote-header">
+      <div class="pr-brand"><i class="fa-solid fa-check-to-slot"></i><div><h1>Session Voting</h1><p>Select exactly one Actor in every category.</p></div></div>
+      <strong data-vote-progress>0 / {{categories.length}} selected</strong>
+    </header>
+
+    {{#unless allowSelfVoting}}<div class="pr-vote-note"><i class="fa-solid fa-user-slash"></i> Self voting is disabled. Actors assigned to your User are shown but cannot be selected.</div>{{/unless}}
+
+    <div class="pr-vote-table-wrap">
+      <table class="pr-vote-table">
+        <thead><tr><th class="pr-player-column">Player / Actor</th>{{#each categories}}<th data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><span>{{shortLabel}}</span><small>+{{points}}</small></th>{{/each}}</tr></thead>
+        <tbody>
+          {{#each candidates}}
+            <tr class="{{#if blocked}}blocked{{/if}}">
+              <th class="pr-player-column"><img src="{{img}}" alt=""><span>{{name}}</span>{{#if blocked}}<i class="fa-solid fa-lock" data-tooltip="Self voting is disabled"></i>{{/if}}</th>
+              {{#each ../categories}}
+                <td class="{{#if ../blocked}}blocked{{/if}}"><label class="pr-vote-cell"><input type="radio" name="category-{{id}}" value="{{../actorId}}" {{#if ../blocked}}disabled{{/if}}><span><i class="fa-solid fa-check"></i></span></label></td>
+              {{/each}}
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    <footer class="pr-footer"><span>Your ballot is submitted once and cannot be edited afterward.</span><button type="button" class="pr-primary" data-action="submit-vote" disabled><i class="fa-solid fa-paper-plane"></i> Submit Votes</button></footer>
+  {{/if}}
+</div>

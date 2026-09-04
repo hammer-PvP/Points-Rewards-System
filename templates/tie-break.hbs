@@ -1,0 +1,16 @@
+<div class="pr-shell pr-tie-shell">
+  <header class="pr-app-header"><div class="pr-brand"><i class="fa-solid fa-scale-balanced"></i><div><h1>Resolve Voting Ties</h1><p>The GM chooses the winner for each tied category.</p></div></div></header>
+  <main class="pr-tie-body">
+    {{#each ties}}
+      <section class="pr-tie-card">
+        <header><div><strong>{{category.title}}</strong><small>{{category.shortLabel}} · +{{category.points}} points</small></div><span>{{top}} votes each</span></header>
+        <div class="pr-tie-options">
+          {{#each tied}}
+            <label><input type="radio" name="tie-{{../category.id}}" value="{{actorId}}"><img src="{{img}}" alt=""><span><strong>{{name}}</strong><small>{{votes}} votes</small></span></label>
+          {{/each}}
+        </div>
+      </section>
+    {{/each}}
+  </main>
+  <footer class="pr-footer"><span>Selections below are final tie-break decisions.</span><button type="button" class="pr-primary" data-action="finalize"><i class="fa-solid fa-flag-checkered"></i> Confirm Results & Award Points</button></footer>
+</div>

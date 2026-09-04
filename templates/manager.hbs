@@ -1,0 +1,118 @@
+<div class="pr-shell pr-manager-shell">
+  <header class="pr-app-header">
+    <div class="pr-brand"><i class="fa-solid fa-award"></i><div><h1>Points & Rewards System</h1><p>Voting, point awards, and reward redemption.</p></div></div>
+    <div class="pr-context"><strong>{{folderName}}</strong><span>{{#if accountWide}}Account-Wide Points{{else}}Character-Based Points{{/if}}</span></div>
+  </header>
+
+  <nav class="pr-tabs" aria-label="Points & Rewards Manager">
+    <button type="button" data-manager-tab="voting"><i class="fa-solid fa-check-to-slot"></i> Voting</button>
+    <button type="button" data-manager-tab="give"><i class="fa-solid fa-circle-plus"></i> Give Points</button>
+    <button type="button" data-manager-tab="redeem"><i class="fa-solid fa-gift"></i> Redeem Benefit</button>
+  </nav>
+
+  <main class="pr-manager-body">
+    <section data-manager-panel="voting">
+      <div class="pr-section-header"><div><h2>Session Voting</h2><p>Players cast one vote in every configured category.</p></div></div>
+      {{#unless hasFolder}}
+        <div class="pr-warning-card"><i class="fa-solid fa-folder-open"></i><div><strong>No Actor folder selected.</strong><p>Select the player Actor folder in module settings before opening voting.</p></div></div>
+      {{else}}
+        {{#if activeVote}}
+          <article class="pr-status-card">
+            <div class="pr-status-number">{{activeVote.submitted}} / {{activeVote.total}}</div>
+            <div><strong>Ballots submitted</strong><p>Pending: {{activeVote.pendingNames}}</p></div>
+          </article>
+          <div class="pr-category-summary">
+            {{#each activeVote.categories}}
+              <span data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><strong>{{shortLabel}}</strong> +{{points}}</span>
+            {{/each}}
+          </div>
+          <div class="pr-actions-row">
+            <button type="button" data-action="remind-vote"><i class="fa-solid fa-bell"></i> Remind Pending</button>
+            <button type="button" class="pr-primary" data-action="finish-vote"><i class="fa-solid fa-flag-checkered"></i> Finish Voting</button>
+          </div>
+        {{else}}
+          <article class="pr-info-card">
+            <i class="fa-solid fa-users-viewfinder"></i>
+            <div><strong>{{actors.length}} Actor(s) in the active folder</strong><p>The current categories will be snapshotted when voting starts.</p></div>
+          </article>
+          <div class="pr-category-summary">
+            {{#each config.categories}}
+              <span data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><strong>#{{@index}} {{shortLabel}}</strong> +{{points}}</span>
+            {{/each}}
+          </div>
+          <div class="pr-actions-row pr-actions-end">
+            <button type="button" class="pr-primary" data-action="start-vote" {{#unless actors.length}}disabled{{/unless}}><i class="fa-solid fa-play"></i> Start Voting</button>
+          </div>
+        {{/if}}
+      {{/unless}}
+    </section>
+
+    <section data-manager-panel="give" hidden>
+      <div class="pr-section-header"><div><h2>Give Points</h2><p>A single award can target one or many accounts. Batch awards create individual ledger commits.</p></div></div>
+      {{#if accountRows.length}}
+        <div class="pr-form-grid">
+          <label class="pr-field pr-wide">Recipients
+            <details class="pr-multiselect">
+              <summary><span data-recipient-label>Select recipients...</span><i class="fa-solid fa-chevron-down"></i></summary>
+              <div class="pr-multiselect-menu">
+                <div class="pr-multiselect-actions"><button type="button" data-action="select-all-recipients">Select All</button><button type="button" data-action="clear-recipients">Clear</button></div>
+                <div class="pr-recipient-list">
+                  {{#each accountRows}}
+                    <label class="pr-recipient-row"><input type="checkbox" name="recipient" value="{{id}}"><span><strong>{{name}}</strong><small>{{secondary}} · {{balance}} pts</small></span></label>
+                  {{/each}}
+                </div>
+              </div>
+            </details>
+          </label>
+
+          <label class="pr-field">Reason
+            <select name="giveReason">
+              {{#each reasons}}
+                <option value="{{id}}" data-title="{{title}}" data-description="{{description}}" data-points="{{points}}">{{title}} — +{{points}}</option>
+              {{/each}}
+              <option value="__custom__">Custom...</option>
+            </select>
+          </label>
+          <div class="pr-value-preview" data-give-preview>+1 each</div>
+        </div>
+
+        <div class="pr-custom-award" data-custom-reason hidden>
+          <label>Reason<input name="customReason" maxlength="100" placeholder="Why are these points being awarded?"></label>
+          <label>Description <span>(optional)</span><input name="customDescription" maxlength="220" placeholder="Short context for the ledger"></label>
+          <label>Points<input name="customPoints" type="number" min="1" step="1" value="1"></label>
+        </div>
+
+        <div class="pr-actions-row pr-actions-end"><button type="button" class="pr-primary" data-action="give-points"><i class="fa-solid fa-circle-plus"></i> Give Points</button></div>
+      {{else}}
+        <div class="pr-empty-state"><i class="fa-solid fa-users-slash"></i><p>No eligible accounts are available in the selected Actor folder.</p></div>
+      {{/if}}
+    </section>
+
+    <section data-manager-panel="redeem" hidden>
+      <div class="pr-section-header"><div><h2>Redeem Benefit</h2><p>Reward redemption is always processed one Actor at a time and is announced in Chat.</p></div></div>
+      {{#if redeemActors.length}}
+        <div class="pr-form-grid">
+          <label class="pr-field">Character
+            <select name="redeemActor">
+              {{#each redeemActors}}<option value="{{id}}">{{name}} — {{balance}} pts</option>{{/each}}
+            </select>
+          </label>
+          <div class="pr-balance-card"><span>Current Balance</span><strong data-redeem-balance>0</strong><small>points</small></div>
+          <label class="pr-field pr-wide">Benefit
+            <select name="redeemBenefit">
+              {{#each benefits}}
+                <option value="{{id}}" data-name="{{name}}" data-description="{{description}}" data-cost="{{cost}}">{{name}} — {{cost}} pts</option>
+              {{/each}}
+            </select>
+          </label>
+        </div>
+        <div class="pr-warning-card" data-no-affordable-benefits hidden><i class="fa-solid fa-lock"></i><div><strong>No affordable benefits.</strong><p>This Actor does not currently have enough points for any configured benefit.</p></div></div>
+        <div class="pr-redeem-preview" data-redeem-preview>Select an available benefit.</div>
+        {{#if allowNegativeBalance}}<p class="pr-setting-note"><i class="fa-solid fa-triangle-exclamation"></i> Negative balances are enabled. All configured benefits may be redeemed; debt will be shown clearly before confirmation and on the player's ledger.</p>{{/if}}
+        <div class="pr-actions-row pr-actions-end"><button type="button" class="pr-primary" data-action="redeem-benefit"><i class="fa-solid fa-gift"></i> Redeem Benefit</button></div>
+      {{else}}
+        <div class="pr-empty-state"><i class="fa-solid fa-user-slash"></i><p>No Actors are available in the selected folder.</p></div>
+      {{/if}}
+    </section>
+  </main>
+</div>
