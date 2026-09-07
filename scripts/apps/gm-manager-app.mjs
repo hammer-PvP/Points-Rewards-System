@@ -13,6 +13,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(options = {}) {
     super(options);
     this.activeTab = String(options.activeTab ?? "voting");
+    this.selectedProfileId = String(options.selectedProfileId ?? "");
     this._busy = false;
   }
 
@@ -21,7 +22,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     classes: ["points-rewards-system", "pr-manager-app", "standard-form"],
     tag: "form",
     position: { width: 760, height: 700 },
-    window: { title: "Points & Rewards System", resizable: true }
+    window: { title: "Polls, Points & Rewards", resizable: true }
   };
 
   static PARTS = {
@@ -29,7 +30,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   async _prepareContext() {
-    if (!game.user.isGM) throw new Error("Only a GM can use Points & Rewards Manager.");
+    if (!game.user.isGM) throw new Error("Only a GM can use Polls, Points & Rewards Manager.");
     const config = SettingsService.get();
     await AccountService.ensureConfiguredPrimaryUsers(config);
     const actors = AccountService.configuredActors(config);
@@ -37,9 +38,12 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const reasons = SettingsService.reasons(config);
     const benefits = SettingsService.benefits(config);
     const activeVote = VotingService.active();
+    const votingProfiles = SettingsService.votingProfiles(config);
+    if (!this.selectedProfileId || !votingProfiles.some(profile => profile.id === this.selectedProfileId)) this.selectedProfileId = votingProfiles[0]?.id ?? "";
     const transfer = AccountService.transferOptions(config.pointMethod);
     const submittedIds = new Set(Object.keys(activeVote?.ballots ?? {}));
     const eligibleUsers = (activeVote?.eligibleUserIds ?? []).map(id => game.users.get(id)).filter(Boolean);
+    const ballotDetails = activeVote ? VotingService.ballotDetails(activeVote) : [];
 
     return {
       config,
@@ -68,11 +72,24 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       })),
       reasons,
       benefits,
+      votingProfiles: votingProfiles.map(profile => ({
+        ...profile,
+        selected: profile.id === this.selectedProfileId,
+        questionCount: profile.questions.length,
+        publicBallots: profile.ballotVisibility === "public"
+      })),
+      selectedVotingProfile: (() => {
+        const profile = votingProfiles.find(profile => profile.id === this.selectedProfileId);
+        return profile ? { ...profile, questions: profile.questions.map((question, index) => ({ ...question, position: index + 1 })) } : null;
+      })(),
       activeVote: activeVote ? {
         ...activeVote,
         submitted: submittedIds.size,
         total: activeVote.eligibleUserIds.length,
-        pendingNames: eligibleUsers.filter(user => !submittedIds.has(user.id)).map(user => user.name).join(", ") || "None"
+        pendingNames: eligibleUsers.filter(user => !submittedIds.has(user.id)).map(user => user.name).join(", ") || "None",
+        ballotDetails,
+        visibilityLabel: activeVote.ballotVisibility === "public" ? "Public" : "Secret",
+        questionCount: activeVote.questions?.length ?? 0
       } : null,
       accountWide: config.pointMethod === POINT_METHODS.ACCOUNT,
       allowNegativeBalance: config.allowNegativeBalance,
@@ -97,6 +114,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.#setTab(button.dataset.managerTab);
     }));
 
+    root.querySelector('[name="votingProfile"]')?.addEventListener("change", event => { this.selectedProfileId = String(event.currentTarget.value ?? ""); });
     root.querySelector('[data-action="start-vote"]')?.addEventListener("click", event => void this.#startVote(event));
     root.querySelector('[data-action="finish-vote"]')?.addEventListener("click", event => void this.#finishVote(event));
     root.querySelector('[data-action="remind-vote"]')?.addEventListener("click", event => {
@@ -187,8 +205,10 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._busy) return;
     try {
       this._busy = true;
-      await VotingService.start();
-      ui.notifications.info("Session voting opened.");
+      const profileId = String(this.element.querySelector('[name="votingProfile"]')?.value ?? this.selectedProfileId);
+      this.selectedProfileId = profileId;
+      await VotingService.start(profileId);
+      ui.notifications.info("Poll opened.");
       this.activeTab = "voting";
       await this.render({ force: true });
     } catch (error) {
@@ -210,12 +230,12 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
         new TieBreakApp(close.results).render({ force: true });
       } else {
         await VotingService.finalize({});
-        ui.notifications.info("Voting finalized and points awarded.");
+        ui.notifications.info("Poll finalized.");
       }
       this.activeTab = "voting";
       await this.render({ force: true });
     } catch (error) {
-      console.error(`${MODULE_ID} | Could not finish voting.`, error);
+      console.error(`${MODULE_ID} | Could not finish poll.`, error);
       ui.notifications.error(error.message, { permanent: true });
     } finally {
       this._busy = false;
@@ -310,6 +330,9 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actorSelect = this.element.querySelector('[name="redeemActor"]');
     const benefitSelect = this.element.querySelector('[name="redeemBenefit"]');
     const preview = this.element.querySelector("[data-redeem-preview]");
+    const effect = this.element.querySelector("[data-benefit-effect]");
+    const effectName = this.element.querySelector("[data-benefit-effect-name]");
+    const effectDescription = this.element.querySelector("[data-benefit-effect-description]");
     const button = this.element.querySelector('[data-action="redeem-benefit"]');
     if (!actorSelect || !benefitSelect || !preview || !button) return;
     const actor = game.actors.get(actorSelect.value);
@@ -317,9 +340,13 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!actor || !option?.dataset.cost || option.disabled) {
       preview.textContent = "Select an available benefit.";
       preview.classList.remove("debt");
+      if (effect) effect.hidden = true;
       button.disabled = true;
       return;
     }
+    if (effect) effect.hidden = false;
+    if (effectName) effectName.textContent = String(option.dataset.name ?? option.textContent ?? "Benefit").trim();
+    if (effectDescription) effectDescription.textContent = String(option.dataset.description ?? "").trim() || "No description configured.";
     const balance = AccountService.balance(actor);
     const cost = Math.max(1, Math.trunc(Number(option.dataset.cost) || 1));
     const after = balance - cost;

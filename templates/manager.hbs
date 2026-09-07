@@ -1,11 +1,11 @@
 <div class="pr-shell pr-manager-shell">
   <header class="pr-app-header">
-    <div class="pr-brand"><i class="fa-solid fa-award"></i><div><h1>Points & Rewards System</h1><p>Voting, point awards, and reward redemption.</p></div></div>
+    <div class="pr-brand"><i class="fa-solid fa-award"></i><div><h1>Polls, Points & Rewards</h1><p>Configurable polls, point awards, and reward redemption.</p></div></div>
     <div class="pr-context"><strong>{{folderName}}</strong><span>{{#if accountWide}}Account-Wide Points{{else}}Character-Based Points{{/if}}</span></div>
   </header>
 
-  <nav class="pr-tabs" aria-label="Points & Rewards Manager">
-    <button type="button" data-manager-tab="voting"><i class="fa-solid fa-check-to-slot"></i> Voting</button>
+  <nav class="pr-tabs" aria-label="Polls, Points & Rewards Manager">
+    <button type="button" data-manager-tab="voting"><i class="fa-solid fa-square-poll-vertical"></i> Polls</button>
     <button type="button" data-manager-tab="give"><i class="fa-solid fa-circle-plus"></i> Give Points</button>
     <button type="button" data-manager-tab="redeem"><i class="fa-solid fa-gift"></i> Redeem Benefit</button>
     <button type="button" class="pr-transfer-tab" data-manager-tab="transfer" data-tooltip="Transfer Points" aria-label="Transfer Points"><i class="fa-solid fa-right-left"></i></button>
@@ -13,36 +13,57 @@
 
   <main class="pr-manager-body">
     <section data-manager-panel="voting">
-      <div class="pr-section-header"><div><h2>Session Voting</h2><p>Players cast one vote in every configured category.</p></div></div>
+      <div class="pr-section-header"><div><h2>Polls</h2><p>Choose a configured Voting Profile, open it to the eligible players, then review and finalize the result.</p></div></div>
       {{#unless hasFolder}}
-        <div class="pr-warning-card"><i class="fa-solid fa-folder-open"></i><div><strong>No Actor folder selected.</strong><p>Select the player Actor folder in module settings before opening voting.</p></div></div>
+        <div class="pr-warning-card"><i class="fa-solid fa-folder-open"></i><div><strong>No Actor folder selected.</strong><p>Select the player Actor folder in module settings before opening a poll.</p></div></div>
       {{else}}
         {{#if activeVote}}
           <article class="pr-status-card">
             <div class="pr-status-number">{{activeVote.submitted}} / {{activeVote.total}}</div>
-            <div><strong>Ballots submitted</strong><p>Pending: {{activeVote.pendingNames}}</p></div>
+            <div><strong>{{activeVote.profileName}}</strong><p>{{activeVote.questionCount}} question(s) · {{activeVote.visibilityLabel}} ballots · Pending: {{activeVote.pendingNames}}</p></div>
           </article>
           <div class="pr-category-summary">
-            {{#each activeVote.categories}}
-              <span data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><strong>{{shortLabel}}</strong> +{{points}}</span>
+            {{#each activeVote.questions}}
+              <span data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><strong>{{shortLabel}}</strong> {{#if points}}+{{points}}{{else}}0 pts{{/if}}</span>
             {{/each}}
           </div>
+
+          {{#if activeVote.ballotDetails.length}}
+            <details class="pr-ballot-audit">
+              <summary><i class="fa-solid fa-list-check"></i> GM Ballot Details — who voted for what</summary>
+              <div class="pr-ballot-audit-list">
+                {{#each activeVote.ballotDetails}}
+                  <article><strong>{{userName}}</strong><div>{{#each selections}}<span data-tooltip="{{questionTitle}}"><b>{{shortLabel}}</b> {{choiceName}}</span>{{/each}}</div></article>
+                {{/each}}
+              </div>
+            </details>
+          {{/if}}
+
           <div class="pr-actions-row">
             <button type="button" data-action="remind-vote"><i class="fa-solid fa-bell"></i> Remind Pending</button>
-            <button type="button" class="pr-primary" data-action="finish-vote"><i class="fa-solid fa-flag-checkered"></i> Finish Voting</button>
+            <button type="button" class="pr-primary" data-action="finish-vote"><i class="fa-solid fa-flag-checkered"></i> Finish Poll</button>
           </div>
         {{else}}
           <article class="pr-info-card">
             <i class="fa-solid fa-users-viewfinder"></i>
-            <div><strong>{{actors.length}} Actor(s) in the active folder</strong><p>The current categories will be snapshotted when voting starts.</p></div>
+            <div><strong>{{actors.length}} Actor(s) in the active folder</strong><p>The selected profile and participant identities are snapshotted when the poll starts.</p></div>
           </article>
-          <div class="pr-category-summary">
-            {{#each config.categories}}
-              <span data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><strong>#{{@index}} {{shortLabel}}</strong> +{{points}}</span>
-            {{/each}}
+          <div class="pr-form-grid pr-poll-launch-grid">
+            <label class="pr-field pr-wide">Voting Profile
+              <select name="votingProfile">
+                {{#each votingProfiles}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}} — {{questionCount}} question(s) — {{#if publicBallots}}Public{{else}}Secret{{/if}}</option>{{/each}}
+              </select>
+            </label>
           </div>
+          {{#if selectedVotingProfile}}
+            <div class="pr-category-summary">
+              {{#each selectedVotingProfile.questions}}
+                <span data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><strong>#{{position}} {{shortLabel}}</strong> {{#if points}}+{{points}}{{else}}0 pts{{/if}}</span>
+              {{/each}}
+            </div>
+          {{/if}}
           <div class="pr-actions-row pr-actions-end">
-            <button type="button" class="pr-primary" data-action="start-vote" {{#unless actors.length}}disabled{{/unless}}><i class="fa-solid fa-play"></i> Start Voting</button>
+            <button type="button" class="pr-primary" data-action="start-vote" {{#unless actors.length}}disabled{{/unless}}><i class="fa-solid fa-play"></i> Start Poll</button>
           </div>
         {{/if}}
       {{/unless}}
@@ -108,6 +129,10 @@
           </label>
         </div>
         <div class="pr-warning-card" data-no-affordable-benefits hidden><i class="fa-solid fa-lock"></i><div><strong>No affordable benefits.</strong><p>This Actor does not currently have enough points for any configured benefit.</p></div></div>
+        <article class="pr-benefit-effect" data-benefit-effect hidden>
+          <header><i class="fa-solid fa-wand-magic-sparkles"></i><div><small>Benefit Effect</small><strong data-benefit-effect-name></strong></div></header>
+          <p data-benefit-effect-description></p>
+        </article>
         <div class="pr-redeem-preview" data-redeem-preview>Select an available benefit.</div>
         {{#if allowNegativeBalance}}<p class="pr-setting-note"><i class="fa-solid fa-triangle-exclamation"></i> Negative balances are enabled. All configured benefits may be redeemed; debt will be shown clearly before confirmation and on the player's ledger.</p>{{/if}}
         <div class="pr-actions-row pr-actions-end"><button type="button" class="pr-primary" data-action="redeem-benefit"><i class="fa-solid fa-gift"></i> Redeem Benefit</button></div>
@@ -115,6 +140,7 @@
         <div class="pr-empty-state"><i class="fa-solid fa-user-slash"></i><p>No Actors are available in the selected folder.</p></div>
       {{/if}}
     </section>
+
     <section data-manager-panel="transfer" hidden>
       <div class="pr-section-header"><div><h2>Transfer Points</h2><p>Administrative recovery tool. Transfers the entire balance between compatible accounts.</p></div></div>
       {{#if transferSources.length}}

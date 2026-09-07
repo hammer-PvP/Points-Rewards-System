@@ -14,8 +14,8 @@ export class TieBreakApp extends HandlebarsApplicationMixin(ApplicationV2) {
     id: "points-rewards-tie-break",
     classes: ["points-rewards-system", "pr-tie-break-app"],
     tag: "form",
-    position: { width: 580, height: 560 },
-    window: { title: "Resolve Voting Ties", resizable: true }
+    position: { width: 600, height: 580 },
+    window: { title: "Resolve Poll Ties", resizable: true }
   };
 
   static PARTS = {
@@ -23,7 +23,13 @@ export class TieBreakApp extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   async _prepareContext() {
-    return { ties: this.results.filter(row => row.tied?.length > 1) };
+    return {
+      ties: this.results.filter(row => row.needsTieBreak).map(row => ({
+        ...row,
+        tied: row.tied.map(choice => ({ ...choice, hasImage: Boolean(choice.img) })),
+        hasPoints: row.question.points > 0
+      }))
+    };
   }
 
   _onRender() {
@@ -33,20 +39,20 @@ export class TieBreakApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async #finalize(event) {
     event.preventDefault();
     if (this._busy) return;
-    const ties = this.results.filter(row => row.tied?.length > 1);
+    const ties = this.results.filter(row => row.needsTieBreak);
     const choices = {};
     for (const row of ties) {
-      const selected = this.element.querySelector(`input[name="tie-${CSS.escape(row.category.id)}"]:checked`);
-      if (!selected) return ui.notifications.warn(`Choose a winner for ${row.category.title}.`);
-      choices[row.category.id] = selected.value;
+      const selected = this.element.querySelector(`input[name="tie-${CSS.escape(row.question.id)}"]:checked`);
+      if (!selected) return ui.notifications.warn(`Choose the GM tie-break result for ${row.question.title}.`);
+      choices[row.question.id] = selected.value;
     }
     try {
       this._busy = true;
       await VotingService.finalize(choices);
-      ui.notifications.info("Voting finalized and points awarded.");
+      ui.notifications.info("Poll finalized.");
       await this.close();
     } catch (error) {
-      console.error(`${MODULE_ID} | Voting finalization failed.`, error);
+      console.error(`${MODULE_ID} | Poll finalization failed.`, error);
       ui.notifications.error(error.message, { permanent: true });
       this._busy = false;
     }

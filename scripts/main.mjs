@@ -23,9 +23,9 @@ Hooks.once("init", () => {
   });
 
   game.settings.registerMenu(MODULE_ID, "configuration", {
-    name: "Points & Rewards System Settings",
-    label: "Configure Points & Rewards",
-    hint: "Configure the Actor folder, Primary User normalization, point method, voting categories, GM award reasons, and redeemable benefits.",
+    name: "Polls, Points & Rewards Settings",
+    label: "Configure Polls, Points & Rewards",
+    hint: "Configure the Actor folder, Primary User normalization, point method, Voting Profiles, GM award reasons, and redeemable benefits.",
     icon: "fa-solid fa-sliders",
     type: PointsRewardsSettingsApp,
     restricted: true
@@ -43,7 +43,7 @@ Hooks.once("ready", async () => {
       }
     } catch (error) {
       console.error(`${MODULE_ID} | World storage initialization failed.`, error);
-      ui.notifications.error(`Points & Rewards world storage could not initialize: ${error.message}`, { permanent: true });
+      ui.notifications.error(`Polls, Points & Rewards world storage could not initialize: ${error.message}`, { permanent: true });
     }
   }
   setTimeout(() => void VotingService.maybePromptCurrentUser(), 500);
@@ -68,7 +68,7 @@ Hooks.on("getHeaderControlsApplicationV2", (app, controls) => {
   if (controls.some(control => control?.action === "pointsRewardsOpenLedger")) return;
   controls.push({
     action: "pointsRewardsOpenLedger",
-    label: "Points",
+    label: "Points & Rewards",
     icon: "fa-solid fa-award",
     visible: true,
     onClick: () => new PointsLedgerApp(actor).render({ force: true })
@@ -106,8 +106,8 @@ function injectActorDirectoryTool(app, element) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "pr-actor-directory-tool";
-  button.innerHTML = '<i class="fa-solid fa-award" inert></i><span>Points & Rewards</span>';
-  button.dataset.tooltip = "Open Points & Rewards System GM Manager";
+  button.innerHTML = '<i class="fa-solid fa-award" inert></i><span>Polls, Points & Rewards</span>';
+  button.dataset.tooltip = "Open Polls, Points & Rewards GM Manager";
   button.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();
@@ -163,10 +163,15 @@ function injectSheetFallback(actor, root) {
 }
 
 function injectDnd5ePointsTab(actor, root) {
-  if (root.querySelector('[data-pr-sheet-tab="true"]')) {
+  const existingButton = root.querySelector('[data-pr-sheet-tab="true"]');
+  const existingPanel = root.querySelector(`.pr-sheet-points-panel[data-actor-id="${cssEscape(actor.id)}"]`);
+  if (existingButton && existingPanel) {
     refreshDnd5ePanel(actor, root);
     return true;
   }
+  existingButton?.remove();
+  root.querySelectorAll(".pr-sheet-points-panel").forEach(panel => panel.remove());
+
   const navCandidates = [
     ...root.querySelectorAll('[data-application-part="tabs"]'),
     ...root.querySelectorAll("nav.sheet-tabs, nav.tabs, .sheet-tabs")
@@ -175,50 +180,52 @@ function injectDnd5ePointsTab(actor, root) {
   if (!nav) return false;
   const sample = nav.querySelector("[data-tab]");
   const group = sample?.dataset?.group ?? "primary";
-  const panels = Array.from(root.querySelectorAll(".tab[data-tab]"));
-  const samplePanel = panels.find(panel => !panel.closest(".pr-sheet-points-panel") && (!panel.dataset.group || panel.dataset.group === group)) ?? panels[0];
+  const nativePanels = Array.from(root.querySelectorAll(".tab[data-tab]"))
+    .filter(panel => !panel.classList.contains("pr-sheet-points-panel") && (!panel.dataset.group || panel.dataset.group === group));
+  const samplePanel = nativePanels[0] ?? root.querySelector(".tab[data-tab]");
   if (!samplePanel?.parentElement) return false;
 
   const tag = ["A", "BUTTON"].includes(sample.tagName) ? sample.tagName.toLowerCase() : "button";
   const button = document.createElement(tag);
   if (tag === "button") button.type = "button";
   button.className = `${sample.className || "item"} pr-sheet-tab-button`;
-  button.dataset.tab = "points-rewards";
-  button.dataset.group = group;
   button.dataset.prSheetTab = "true";
-  button.dataset.tooltip = "Points & Rewards — current balance and last 10 movements";
+  button.dataset.tooltip = "Points & Rewards";
   button.setAttribute("aria-label", "Points & Rewards");
   button.innerHTML = '<i class="fa-solid fa-award" inert aria-hidden="true"></i>';
   nav.append(button);
 
   const panel = document.createElement("section");
-  panel.className = "tab pr-sheet-points-panel";
-  panel.dataset.tab = "points-rewards";
-  panel.dataset.group = group;
+  panel.className = "pr-sheet-points-panel";
   panel.dataset.actorId = actor.id;
   panel.hidden = true;
   samplePanel.parentElement.append(panel);
   refreshDnd5ePanel(actor, root);
 
-  button.addEventListener("click", event => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    for (const candidate of nav.querySelectorAll(`[data-group="${cssEscape(group)}"][data-tab], [data-tab]`)) candidate.classList.remove("active");
-    for (const candidate of samplePanel.parentElement.querySelectorAll(`.tab[data-group="${cssEscape(group)}"], .tab[data-tab]`)) {
-      candidate.classList.remove("active");
-      candidate.hidden = true;
-    }
-    button.classList.add("active");
-    panel.hidden = false;
-    panel.classList.add("active");
-  }, true);
-
-  nav.addEventListener("click", event => {
-    const target = event.target.closest?.("[data-tab]");
-    if (!target || target === button) return;
+  const leavePoints = () => {
+    for (const candidate of nativePanels) candidate.classList.remove("pr-native-tab-suppressed");
     panel.hidden = true;
     panel.classList.remove("active");
     button.classList.remove("active");
+    root.classList.remove("pr-points-sheet-mode");
+  };
+
+  button.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    for (const candidate of nativePanels) candidate.classList.add("pr-native-tab-suppressed");
+    nav.querySelectorAll("[data-tab].active").forEach(candidate => candidate.classList.remove("active"));
+    refreshDnd5ePanel(actor, root);
+    button.classList.add("active");
+    panel.hidden = false;
+    panel.classList.add("active");
+    root.classList.add("pr-points-sheet-mode");
+  });
+
+  nav.addEventListener("click", event => {
+    const target = event.target.closest?.("[data-tab]");
+    if (!target) return;
+    leavePoints();
   }, true);
   return true;
 }

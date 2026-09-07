@@ -97,19 +97,33 @@ export function hasModuleData(actor) {
   );
 }
 
-export function downloadJsonFile(data, filename) {
-  const blob = new Blob([`${JSON.stringify(data, null, 2)}\n`], { type: "application/json;charset=utf-8" });
+export async function downloadJsonFile(data, filename) {
+  const text = `${JSON.stringify(data, null, 2)}\n`;
+  const mime = "application/json;charset=utf-8";
+  const foundrySaver = foundry?.utils?.saveDataToFile;
+  if (typeof foundrySaver === "function") {
+    foundrySaver(text, mime, filename);
+    return;
+  }
+  if (typeof globalThis.saveDataToFile === "function") {
+    globalThis.saveDataToFile(text, mime, filename);
+    return;
+  }
+
+  // Last-resort compatibility fallback for clients which do not expose Foundry's saver.
+  const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
   try {
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
+    anchor.rel = "noopener";
     anchor.style.display = "none";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
   } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 }
 
@@ -149,7 +163,7 @@ export async function importModeDialog(label = "configuration") {
   const content = `<p>How should the imported <strong>${htmlEscape(label)}</strong> be applied?</p><p><strong>Replace</strong> overwrites the current section. <strong>Merge</strong> keeps current entries and adds non-duplicate imported entries.</p>`;
   if (DialogV2?.wait) {
     return DialogV2.wait({
-      window: { title: "Import Points & Rewards Configuration" },
+      window: { title: "Import Polls, Points & Rewards Configuration" },
       content,
       modal: true,
       rejectClose: false,
@@ -165,7 +179,7 @@ export async function importModeDialog(label = "configuration") {
       let settled = false;
       const done = value => { if (settled) return; settled = true; resolve(value); };
       new Dialog({
-        title: "Import Points & Rewards Configuration",
+        title: "Import Polls, Points & Rewards Configuration",
         content,
         buttons: {
           merge: { icon: '<i class="fa-solid fa-code-merge"></i>', label: "Merge", callback: () => done("merge") },

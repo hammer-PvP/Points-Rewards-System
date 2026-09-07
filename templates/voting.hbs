@@ -1,29 +1,54 @@
 <div class="pr-shell pr-vote-shell">
   {{#if missing}}
-    <div class="pr-empty-state"><i class="fa-solid fa-ban"></i><p>This voting session is no longer available.</p></div>
+    <div class="pr-empty-state"><i class="fa-solid fa-ban"></i><p>This poll is no longer available.</p></div>
   {{else}}
     <header class="pr-app-header pr-vote-header">
-      <div class="pr-brand"><i class="fa-solid fa-check-to-slot"></i><div><h1>Session Voting</h1><p>Select exactly one Actor in every category.</p></div></div>
-      <strong data-vote-progress>0 / {{categories.length}} selected</strong>
+      <div class="pr-brand"><i class="fa-solid fa-square-poll-vertical"></i><div><h1>{{session.profileName}}</h1><p>Select exactly one answer for every question.</p></div></div>
+      <strong data-vote-progress>0 / {{questions.length}} selected</strong>
     </header>
 
-    {{#unless allowSelfVoting}}<div class="pr-vote-note"><i class="fa-solid fa-user-slash"></i> Self voting is disabled. Actors assigned to your User are shown but cannot be selected.</div>{{/unless}}
-
-    <div class="pr-vote-table-wrap">
-      <table class="pr-vote-table">
-        <thead><tr><th class="pr-player-column">Player / Actor</th>{{#each categories}}<th data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><span>{{shortLabel}}</span><small>+{{points}}</small></th>{{/each}}</tr></thead>
-        <tbody>
-          {{#each candidates}}
-            <tr class="{{#if blocked}}blocked{{/if}}">
-              <th class="pr-player-column"><img src="{{img}}" alt=""><span>{{name}}</span>{{#if blocked}}<i class="fa-solid fa-lock" data-tooltip="Self voting is disabled"></i>{{/if}}</th>
-              {{#each ../categories}}
-                <td class="{{#if ../blocked}}blocked{{/if}}"><label class="pr-vote-cell"><input type="radio" name="category-{{id}}" value="{{../actorId}}" {{#if ../blocked}}disabled{{/if}}><span><i class="fa-solid fa-check"></i></span></label></td>
-              {{/each}}
-            </tr>
-          {{/each}}
-        </tbody>
-      </table>
+    <div class="pr-vote-meta">
+      {{#if publicBallots}}<span><i class="fa-solid fa-eye"></i> Public ballot: voter names are revealed after the GM finalizes the poll.</span>{{else}}<span><i class="fa-solid fa-user-secret"></i> Secret ballot: players only see final totals.</span>{{/if}}
+      {{#if hasActorQuestions}}{{#unless allowSelfVoting}}<span><i class="fa-solid fa-user-slash"></i> Self voting is disabled for Actor Vote questions.</span>{{/unless}}{{/if}}
     </div>
-    <footer class="pr-footer"><span>Your ballot is submitted once and cannot be edited afterward.</span><button type="button" class="pr-primary" data-action="submit-vote" disabled><i class="fa-solid fa-paper-plane"></i> Submit Votes</button></footer>
+
+    {{#if allActorQuestions}}
+      <div class="pr-vote-table-wrap">
+        <table class="pr-vote-table">
+          <thead><tr><th class="pr-player-column">Player / Actor</th>{{#each questions}}<th data-tooltip="{{title}}{{#if description}} — {{description}}{{/if}}"><span>{{shortLabel}}</span>{{#if hasPoints}}<small>+{{points}}</small>{{else}}<small>0 pts</small>{{/if}}</th>{{/each}}</tr></thead>
+          <tbody>
+            {{#each candidates}}
+              <tr class="{{#if blocked}}blocked{{/if}}">
+                <th class="pr-player-column"><img src="{{img}}" alt=""><span>{{name}}</span>{{#if blocked}}<i class="fa-solid fa-lock" data-tooltip="Self voting is disabled"></i>{{/if}}</th>
+                {{#each ../questions}}
+                  <td class="{{#if ../blocked}}blocked{{/if}}"><label class="pr-vote-cell"><input type="radio" name="question-{{id}}" value="{{../actorId}}" {{#if ../blocked}}disabled{{/if}}><span><i class="fa-solid fa-check"></i></span></label></td>
+                {{/each}}
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    {{else}}
+      <div class="pr-question-list">
+        {{#each questions}}
+          <section class="pr-ballot-question">
+            <header><div><span class="pr-question-label">{{shortLabel}}</span><h2>{{title}}</h2></div>{{#if hasPoints}}<strong>+{{points}} pts</strong>{{else}}<strong>Informational</strong>{{/if}}</header>
+            {{#if description}}<p>{{description}}</p>{{/if}}
+            <div class="pr-ballot-options {{#if isActor}}actor-options{{/if}}">
+              {{#each choices}}
+                <label class="pr-ballot-option {{#if blocked}}blocked{{/if}}">
+                  <input type="radio" name="question-{{../id}}" value="{{valueId}}" {{#if blocked}}disabled{{/if}}>
+                  {{#if img}}<img src="{{img}}" alt="">{{/if}}
+                  <span><strong>{{name}}</strong>{{#if description}}<small>{{description}}</small>{{/if}}</span>
+                  <i class="fa-solid {{#if blocked}}fa-lock{{else}}fa-circle-check{{/if}}"></i>
+                </label>
+              {{/each}}
+            </div>
+          </section>
+        {{/each}}
+      </div>
+    {{/if}}
+
+    <footer class="pr-footer"><span>Your ballot is final after submission; choices can be changed freely before then.</span><button type="button" class="pr-primary" data-action="submit-vote" disabled><i class="fa-solid fa-paper-plane"></i> Submit Ballot</button></footer>
   {{/if}}
 </div>

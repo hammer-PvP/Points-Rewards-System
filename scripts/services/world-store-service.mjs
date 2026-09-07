@@ -161,13 +161,13 @@ export class WorldStoreService {
   }
 
   static async save(nextState, { backup = true } = {}) {
-    if (!game.user?.isGM) throw new Error("Only a GM can write Points & Rewards world data.");
+    if (!game.user?.isGM) throw new Error("Only a GM can write Polls, Points & Rewards world data.");
     const rawCurrent = this.raw();
     const currentCheck = await this.verify(rawCurrent);
-    if (!currentCheck.ok) throw new Error("Points & Rewards blocked a write because the current World data failed its integrity check. The previous backup is still available.");
+    if (!currentCheck.ok) throw new Error("Polls, Points & Rewards blocked a write because the current World data failed its integrity check. The previous backup is still available.");
     const current = this.normalize(rawCurrent);
     const requestedRevision = Math.max(0, Math.trunc(Number(nextState?.revision) || 0));
-    if (requestedRevision !== current.revision) throw new Error(`Points & Rewards blocked a stale World-data write (expected revision ${current.revision}, received ${requestedRevision}). Reopen the window and try again.`);
+    if (requestedRevision !== current.revision) throw new Error(`Polls, Points & Rewards blocked a stale World-data write (expected revision ${current.revision}, received ${requestedRevision}). Reopen the window and try again.`);
 
     const state = this.normalize(nextState);
     state.revision = current.revision + 1;
@@ -179,7 +179,7 @@ export class WorldStoreService {
     await game.settings.set(MODULE_ID, "worldState", state);
     const rereadRaw = this.raw();
     const check = await this.verify(rereadRaw);
-    if (!check.ok) throw new Error("Points & Rewards world data failed its post-write integrity check.");
+    if (!check.ok) throw new Error("Polls, Points & Rewards world data failed its post-write integrity check.");
     return this.normalize(rereadRaw);
   }
 
@@ -189,7 +189,7 @@ export class WorldStoreService {
     const check = await this.verify(raw);
     if (!check.ok) {
       console.error(`${MODULE_ID} | World-state integrity mismatch.`, check);
-      ui.notifications.error("Points & Rewards detected a world-data integrity mismatch. The previous backup was preserved; avoid point changes until the data is reviewed.", { permanent: true });
+      ui.notifications.error("Polls, Points & Rewards detected a world-data integrity mismatch. The previous backup was preserved; avoid point changes until the data is reviewed.", { permanent: true });
       return { ok: false, check };
     }
     const storedSchema = Math.max(0, Math.trunc(Number(raw.schemaVersion) || 0));

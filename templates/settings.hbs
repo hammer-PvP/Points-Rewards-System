@@ -1,46 +1,46 @@
 <div class="pr-shell pr-settings-shell">
   <header class="pr-app-header">
-    <div class="pr-brand"><i class="fa-solid fa-sliders"></i><div><h1>Points & Rewards Settings</h1><p>Configure the rules and reusable options for your table.</p></div></div>
+    <div class="pr-brand"><i class="fa-solid fa-sliders"></i><div><h1>Polls, Points & Rewards Settings</h1><p>Configure reusable polls, point rules, and rewards for your table.</p></div></div>
   </header>
 
   <nav class="pr-tabs pr-settings-tabs">
     <button type="button" data-settings-tab="general"><i class="fa-solid fa-gear"></i> General</button>
     <button type="button" data-settings-tab="identity"><i class="fa-solid fa-link"></i> User / Actor</button>
-    <button type="button" data-settings-tab="voting"><i class="fa-solid fa-check-to-slot"></i> Voting Categories</button>
+    <button type="button" data-settings-tab="voting"><i class="fa-solid fa-square-poll-vertical"></i> Voting Profiles</button>
     <button type="button" data-settings-tab="reasons"><i class="fa-solid fa-circle-plus"></i> Give Point Reasons</button>
     <button type="button" data-settings-tab="benefits"><i class="fa-solid fa-gift"></i> Redeem Benefits</button>
   </nav>
 
   <main class="pr-settings-body">
     <section data-settings-panel="general">
-      <div class="pr-section-header"><div><h2>General</h2><p>The Actor folder is only a live filter. Changing it never moves, resets, or deletes points.</p></div></div>
+      <div class="pr-section-header"><div><h2>General</h2><p>The Actor folder is only a live participant filter. Changing it never moves, resets, or deletes points.</p></div></div>
       <div class="pr-settings-card">
         <label class="pr-field">Player Actor Folder
           <select name="actorFolderId">
             <option value="">— Select Actor Folder —</option>
             {{#each actorFolders}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
           </select>
-          <small>Only Actors directly inside this folder appear in voting and GM point controls.</small>
+          <small>Actors directly inside this folder define the current players/candidates shown by the module.</small>
         </label>
       </div>
 
       <div class="pr-settings-card">
         <h3>Point Method</h3>
         <div class="pr-method-grid">
-          <label class="pr-method-card"><input type="radio" name="pointMethod" value="account" {{#if accountSelected}}checked{{/if}}><span><strong>Account-Wide Points</strong><small>One shared point balance per User. Actors assigned to that Primary User display and spend from the same account.</small></span></label>
+          <label class="pr-method-card"><input type="radio" name="pointMethod" value="account" {{#if accountSelected}}checked{{/if}}><span><strong>Account-Wide Points</strong><small>One shared point balance per Primary User. All linked characters use the same pool.</small></span></label>
           <label class="pr-method-card"><input type="radio" name="pointMethod" value="character" {{#if characterSelected}}checked{{/if}}><span><strong>Character-Based Points</strong><small>Every Actor maintains an independent balance and point history.</small></span></label>
         </div>
         <p class="pr-setting-note"><i class="fa-solid fa-shuffle"></i> Changing method triggers a balance conversion preview. Account → Character divides equally and rounds down; Character → Account sums character balances.</p>
       </div>
 
       <div class="pr-settings-card pr-toggle-list">
-        <label><input type="checkbox" name="allowNegativeBalance" {{#if config.allowNegativeBalance}}checked{{/if}}><span><strong>Allow Negative Balance</strong><small>GM may redeem benefits that cost more than the current balance. Debt is shown before confirmation and in the player ledger.</small></span></label>
-        <label><input type="checkbox" name="postVotingResultsToChat" {{#if config.postVotingResultsToChat}}checked{{/if}}><span><strong>Post Voting Results to Chat</strong><small>Publish category winners and awarded points when the GM finalizes voting.</small></span></label>
-        <label><input type="checkbox" name="showSheetPoints" {{#if config.showSheetPoints}}checked{{/if}}><span><strong>Show Points on Actor Sheets</strong><small>D&D5e character sheets receive a Points tab. Other systems use a sheet access fallback when a compatible tab cannot be injected.</small></span></label>
+        <label><input type="checkbox" name="allowNegativeBalance" {{#if config.allowNegativeBalance}}checked{{/if}}><span><strong>Allow Negative Balance</strong><small>GM may redeem benefits that cost more than the current balance. Debt is shown clearly before confirmation and in the player ledger.</small></span></label>
+        <label><input type="checkbox" name="postVotingResultsToChat" {{#if config.postVotingResultsToChat}}checked{{/if}}><span><strong>Post Poll Results to Chat</strong><small>Publish the final result when the GM closes a poll. Public profiles reveal voter names; Secret profiles show totals only.</small></span></label>
+        <label><input type="checkbox" name="showSheetPoints" {{#if config.showSheetPoints}}checked{{/if}}><span><strong>Show Points on Actor Sheets</strong><small>D&D5e character sheets receive icon-only Points access. Other systems use a safe sheet fallback.</small></span></label>
       </div>
 
       <div class="pr-settings-card pr-portable-config">
-        <div><h3>Portable Ecosystem Configuration</h3><p>Export or import Voting Categories, Give Point Reasons, and Redeem Benefits together. Player identities, Primary Users, balances, ledgers, folders, and World data are never included.</p></div>
+        <div><h3>Portable Ecosystem Configuration</h3><p>Export or import Voting Profiles, Give Point Reasons, and Redeem Benefits together. Player identities, Primary Users, balances, ledgers, folders, and World data are never included.</p></div>
         <div class="pr-config-transfer-actions">
           <button type="button" data-export-config="all"><i class="fa-solid fa-file-export"></i> Export All</button>
           <button type="button" data-import-config="all"><i class="fa-solid fa-file-import"></i> Import All</button>
@@ -49,7 +49,7 @@
     </section>
 
     <section data-settings-panel="identity" hidden>
-      <div class="pr-section-header"><div><h2>User / Actor Normalization</h2><p>Foundry Ownership controls who can operate an Actor. Primary User is the persistent Points & Rewards identity used for account grouping and self-voting.</p></div></div>
+      <div class="pr-section-header"><div><h2>User / Actor Normalization</h2><p>Foundry Ownership controls who can operate an Actor. Primary User is the persistent identity used for account grouping and self-voting.</p></div></div>
       {{#if normalizationRows.length}}
         <div class="pr-normalization-head" aria-hidden="true"><span>Actor</span><span>Foundry Owners</span><span>Primary User</span><span>Status</span></div>
         <div class="pr-normalization-list">
@@ -67,28 +67,71 @@
             </article>
           {{/each}}
         </div>
-        <p class="pr-setting-note"><i class="fa-solid fa-shield-halved"></i> Once assigned, Primary User never changes automatically when Foundry Owners are added or removed. Changing Primary User does not move point balances; use the Transfer tool only when a balance itself must move.</p>
+        <p class="pr-setting-note"><i class="fa-solid fa-shield-halved"></i> Once assigned, Primary User never changes automatically when Foundry Owners are added or removed. Changing Primary User does not move point balances; use Transfer only when a balance itself must move.</p>
       {{else}}
         <div class="pr-empty-state"><i class="fa-solid fa-folder-open"></i><p>No Actors are available in the currently selected Player Actor Folder. Save a folder selection first, then reopen settings to normalize its Actors.</p></div>
       {{/if}}
     </section>
 
     <section data-settings-panel="voting" hidden>
-      <div class="pr-section-header"><div><h2>Voting Categories</h2><p>Minimum {{minCategories}}, maximum {{maxCategories}}. The order below is the grid order from left to right: #1 → #8.</p></div><div class="pr-section-actions"><button type="button" data-export-config="voting-categories"><i class="fa-solid fa-file-export"></i> Export</button><button type="button" data-import-config="voting-categories"><i class="fa-solid fa-file-import"></i> Import</button><button type="button" data-action="add-category"><i class="fa-solid fa-plus"></i> Add Category</button></div></div>
-      <div class="pr-settings-card pr-toggle-list"><label><input type="checkbox" name="allowSelfVoting" {{#if config.allowSelfVoting}}checked{{/if}}><span><strong>Allow Self Voting</strong><small>When disabled, every Actor assigned to the voting User as Primary User is visible but blocked in the voting matrix.</small></span></label></div>
-      <div class="pr-config-list" data-category-list>
-        {{#each categories}}
-          <article class="pr-config-row pr-category-row" data-config-row="category" data-id="{{id}}">
-            <div class="pr-position" data-position>#{{position}}</div>
-            <label>Title<input name="categoryTitle" value="{{title}}" maxlength="80" required></label>
-            <label>Short Label<input name="categoryShort" value="{{shortLabel}}" maxlength="12" required></label>
-            <label class="pr-grow">Description<input name="categoryDescription" value="{{description}}" maxlength="220"></label>
-            <label class="pr-points-field">Points<input name="categoryPoints" type="number" min="1" step="1" value="{{points}}" required></label>
-            <div class="pr-row-actions"><button type="button" data-row-action="up" data-tooltip="Move left"><i class="fa-solid fa-arrow-left"></i></button><button type="button" data-row-action="down" data-tooltip="Move right"><i class="fa-solid fa-arrow-right"></i></button><button type="button" data-row-action="delete" data-tooltip="Delete category"><i class="fa-solid fa-trash"></i></button></div>
-          </article>
+      <div class="pr-section-header">
+        <div><h2>Voting Profiles</h2><p>Create reusable polls. Each profile contains 1–{{maxQuestions}} questions and can mix Actor Votes with custom Option Votes.</p></div>
+        <div class="pr-section-actions"><button type="button" data-export-config="voting-profiles"><i class="fa-solid fa-file-export"></i> Export</button><button type="button" data-import-config="voting-profiles"><i class="fa-solid fa-file-import"></i> Import</button></div>
+      </div>
+
+      <div class="pr-profile-toolbar">
+        <label class="pr-field pr-grow">Voting Profile
+          <select name="votingProfileSelect">{{#each votingProfiles}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select>
+        </label>
+        <button type="button" data-action="add-profile"><i class="fa-solid fa-plus"></i> New Profile</button>
+        <button type="button" data-action="delete-profile" data-tooltip="Delete selected Voting Profile"><i class="fa-solid fa-trash"></i></button>
+        <button type="button" data-action="add-question"><i class="fa-solid fa-plus"></i> Add Question</button>
+      </div>
+
+      <div data-profile-panels>
+        {{#each votingProfiles}}
+          <section class="pr-voting-profile-editor" data-voting-profile data-profile-id="{{id}}" {{#unless selected}}hidden{{/unless}}>
+            <div class="pr-profile-meta-grid">
+              <label class="pr-field pr-wide">Profile Name<input name="profileName" value="{{name}}" maxlength="80" required></label>
+              <label class="pr-compact-toggle"><input type="checkbox" name="profileSelfVoting" {{#if allowSelfVoting}}checked{{/if}}><span><strong>Allow Self Voting</strong><small>Applies only to Actor Vote questions.</small></span></label>
+              <label class="pr-compact-toggle"><input type="checkbox" name="profilePublicBallots" {{#if publicBallots}}checked{{/if}}><span><strong>Public Ballots</strong><small>Reveal who voted for what only after finalization.</small></span></label>
+            </div>
+
+            <div class="pr-config-list pr-question-config-list" data-question-list>
+              {{#each questions}}
+                <article class="pr-question-row" data-config-row="question" data-id="{{id}}" data-last-actor-points="{{points}}">
+                  <div class="pr-question-head">
+                    <span class="pr-position" data-position>#{{position}}</span>
+                    <label>Title<input name="questionTitle" value="{{title}}" maxlength="80" required></label>
+                    <label>Short Label<input name="questionShort" value="{{shortLabel}}" maxlength="12" required></label>
+                    <label>Type<select name="questionType"><option value="actor" {{#if isActor}}selected{{/if}}>Actor Vote</option><option value="option" {{#if isOption}}selected{{/if}}>Option Vote</option></select></label>
+                    <label class="pr-points-field">Points<input name="questionPoints" type="number" min="0" step="1" value="{{points}}" {{#if isOption}}disabled{{/if}}></label>
+                    <div class="pr-row-actions"><button type="button" data-row-action="up" data-tooltip="Move left"><i class="fa-solid fa-arrow-left"></i></button><button type="button" data-row-action="down" data-tooltip="Move right"><i class="fa-solid fa-arrow-right"></i></button><button type="button" data-row-action="delete" data-tooltip="Delete question"><i class="fa-solid fa-trash"></i></button></div>
+                  </div>
+                  <div class="pr-question-body">
+                    <label class="pr-field pr-grow">Description<input name="questionDescription" value="{{description}}" maxlength="220"></label>
+                    <label class="pr-mini-toggle"><input type="checkbox" name="questionResolveTie" {{#if resolveTiesByGM}}checked{{/if}}><span><strong>GM resolves ties</strong><small>Unchecked accepts tied first-place results.</small></span></label>
+                  </div>
+                  <div class="pr-option-area" data-option-area {{#unless isOption}}hidden{{/unless}}>
+                    <div class="pr-option-area-head"><span><strong>Answer Options</strong><small>Minimum {{../../minOptions}}, maximum {{../../maxOptions}}.</small></span><button type="button" data-row-action="add-option"><i class="fa-solid fa-plus"></i> Add Option</button></div>
+                    <div class="pr-option-list" data-option-list>
+                      {{#each options}}
+                        <div class="pr-option-row" data-config-row="option" data-id="{{id}}">
+                          <span class="pr-option-position" data-option-position>{{position}}</span>
+                          <label>Label<input name="optionLabel" value="{{label}}" maxlength="80" required></label>
+                          <label class="pr-grow">Description<input name="optionDescription" value="{{description}}" maxlength="180"></label>
+                          <div class="pr-row-actions"><button type="button" data-row-action="up" data-tooltip="Move up"><i class="fa-solid fa-arrow-up"></i></button><button type="button" data-row-action="down" data-tooltip="Move down"><i class="fa-solid fa-arrow-down"></i></button><button type="button" data-row-action="delete" data-tooltip="Delete option"><i class="fa-solid fa-trash"></i></button></div>
+                        </div>
+                      {{/each}}
+                    </div>
+                  </div>
+                </article>
+              {{/each}}
+            </div>
+          </section>
         {{/each}}
       </div>
-      <p class="pr-setting-note"><i class="fa-solid fa-arrow-pointer"></i> Players see the Short Label in the compact grid. Mouseover always shows the full Title and Description.</p>
+      <p class="pr-setting-note"><i class="fa-solid fa-circle-info"></i> Actor Vote points may be <strong>0</strong> for an informational poll. Option Votes are always informational and therefore use 0 points. Short Labels keep Actor Vote grids compact; mouseover shows the full Title and Description.</p>
     </section>
 
     <section data-settings-panel="reasons" hidden>

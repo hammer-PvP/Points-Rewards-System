@@ -670,7 +670,7 @@ export class AccountService {
     };
     await WorldStoreService.save(state);
     if (actorAccounts || userAccounts) {
-      ui.notifications.info(`Points & Rewards migrated ${actorAccounts} character account(s) and ${userAccounts} user account(s) into protected World storage.`);
+      ui.notifications.info(`Polls, Points & Rewards migrated ${actorAccounts} character account(s) and ${userAccounts} user account(s) into protected World storage.`);
     }
     return { imported: true, actorAccounts, userAccounts, transactions };
   }

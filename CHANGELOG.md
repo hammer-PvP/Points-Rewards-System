@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.2.0
+
+Poll-engine expansion and stability/polish release.
+
+### Added
+
+- Multiple reusable **Voting Profiles** selectable by the GM before a poll starts.
+- Profiles support **1–8 questions** and may mix Actor Vote and custom Option Vote questions.
+- Actor Vote questions can use `0` points for informational polls or award points to winners.
+- Option Vote questions support **2–8 GM-defined answers** and remain informational at `0` points.
+- Per-question **GM resolves ties** policy. When disabled, first-place ties are accepted; point-awarding Actor Votes grant the configured award to every accepted tied winner.
+- Per-profile **Secret / Public ballots**. Public polls reveal voter names only in the finalized results, while Secret polls publish aggregate totals only.
+- GM-only active-poll ballot detail view showing who voted for what before finalization.
+- Benefit effect/description preview in **Redeem Benefit** before the GM confirms the purchase.
+- Export/import schema v2 for Voting Profiles, including question types, answer options, order, point values, tie policy, self-vote policy, and ballot visibility.
+
+### Fixed
+
+- Reworked the D&D5e Points sheet integration so the module no longer takes over the system's native tab state. This addresses first-open blank Points content, native tabs becoming blank after visiting Points, semi-rendered returns, and stale Points tab UI state.
+- The Points sheet icon tooltip no longer embeds a cached balance value; the visible Points panel always reads the current account state.
+- Improved JSON export behavior by preferring Foundry's local-file save helper before using the legacy Blob/download fallback.
+
+### Changed
+
+- Display name changed from **Points & Rewards System** to **Polls, Points & Rewards**. The module ID remains `points-and-rewards`.
+- The former single Voting Categories configuration is normalized into a default **Session Awards** Voting Profile on upgrade.
+- v0.1.0 Voting Categories JSON exports remain importable and are converted into a Session Awards profile.
+- Voting results, tie resolution, and automatic point commits now operate per question inside the selected Voting Profile.
+- README updated as the current v0.2.0 capability overview; version history remains in this CHANGELOG.
+
 ## 0.1.0
 
 Portable configuration and cross-client World-integrity stabilization release.
