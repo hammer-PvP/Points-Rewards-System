@@ -51,7 +51,7 @@ Hooks.once("ready", async () => {
 
 Hooks.on("renderApplicationV2", (app, element) => {
   if (isActorDirectoryApp(app)) injectActorDirectoryTool(app, element);
-  decorateActorSheet(app, element);
+  if (isActorSheetApplication(app)) decorateActorSheet(app, element);
 });
 
 Hooks.on("renderActorDirectory", (app, html) => injectActorDirectoryTool(app, html));
@@ -62,6 +62,7 @@ Hooks.on("renderActorSheet", (app, html) => {
 });
 
 Hooks.on("getHeaderControlsApplicationV2", (app, controls) => {
+  if (!isActorSheetV2Application(app)) return;
   const actor = actorFromApp(app);
   if (!actor || !shouldShowPoints(actor)) return;
   if (game.system.id === "dnd5e" && actor.type === "character") return;
@@ -121,7 +122,24 @@ function injectActorDirectoryTool(app, element) {
 
 function actorFromApp(app) {
   const document = app?.actor ?? app?.document ?? app?.object ?? null;
-  return document?.documentName === "Actor" || document instanceof Actor ? document : null;
+  const ActorDocument = globalThis.Actor;
+  const isActorDocument = document?.documentName === "Actor"
+    || (typeof ActorDocument === "function" && document instanceof ActorDocument);
+  return isActorDocument ? document : null;
+}
+
+function isActorSheetV2Application(app) {
+  const ActorSheetV2 = foundry?.applications?.sheets?.ActorSheetV2;
+  return typeof ActorSheetV2 === "function" && app instanceof ActorSheetV2;
+}
+
+function isLegacyActorSheetApplication(app) {
+  const ActorSheetV1 = foundry?.appv1?.sheets?.ActorSheet ?? globalThis.ActorSheet;
+  return typeof ActorSheetV1 === "function" && app instanceof ActorSheetV1;
+}
+
+function isActorSheetApplication(app) {
+  return isActorSheetV2Application(app) || isLegacyActorSheetApplication(app);
 }
 
 function shouldShowPoints(actor) {
@@ -134,6 +152,7 @@ function shouldShowPoints(actor) {
 }
 
 function decorateActorSheet(app, element) {
+  if (!isActorSheetApplication(app)) return;
   const actor = actorFromApp(app);
   const root = asRoot(element, app);
   if (!actor || !root || !shouldShowPoints(actor)) return;
@@ -141,6 +160,10 @@ function decorateActorSheet(app, element) {
     const inserted = injectDnd5ePointsTab(actor, root);
     if (inserted) return;
   }
+
+  // ApplicationV2 Actor sheets receive the generic fallback through the
+  // native header-controls hook. Legacy Actor sheets still need a DOM button.
+  if (isActorSheetV2Application(app)) return;
   injectSheetFallback(actor, root);
 }
 

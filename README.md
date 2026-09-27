@@ -120,7 +120,7 @@ Players can see their current balance and the latest **10 point movements**.
 
 - D&D5e character sheets receive icon-only Points access using the module's `fa-award` icon.
 - The D&D5e integration keeps the module's Points surface separate from the system's native tab controller so opening Points does not replace or invalidate native sheet tabs.
-- Other systems use a safe sheet/header fallback that opens the same ledger view.
+- Other systems use a safe fallback on genuine Actor sheets that opens the same ledger view; unrelated applications and child dialogs are never decorated.
 - The ledger shows positive/negative movements, reasons, dates, and debt state.
 
 ## World storage and data safety
@@ -175,7 +175,7 @@ Exportable sections:
 
 Controls are available individually and through **Export All / Import All**. Imports support **Replace** or **Merge** and remain in the Settings window for review until **Save Settings** is clicked.
 
-v0.2.0 remains backward compatible with v0.1.0 Voting Categories exports by converting them into a Session Awards profile during import.
+Current imports remain backward compatible with v0.1.0 Voting Categories exports by converting them into a Session Awards profile during import.
 
 Portable exports deliberately exclude:
 

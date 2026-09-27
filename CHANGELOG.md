@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0 — Release Candidate
+
+Final release-candidate stabilization pass before the planned 1.0 release.
+
+### Fixed
+
+- Restricted Points sheet/header integration to actual **Actor Sheet** applications instead of any ApplicationV2 that happened to expose an Actor reference.
+- Prevented the generic Points fallback control from appearing in D&D5e spell/activity dialogs, child applications, configuration windows, and other non-Actor windows.
+- Prevented the Points ledger window from receiving a second Points button that opened another copy of itself.
+- Prevented stray Points controls from shifting native window-header controls such as the close button.
+- Added explicit ActorSheetV2 and legacy ActorSheet guards so the system-agnostic fallback remains available on genuine Actor sheets without leaking into unrelated applications.
+- Avoided duplicate fallback controls on ApplicationV2 Actor sheets by using Foundry's native header-control path there and reserving direct DOM fallback injection for legacy Actor sheets.
+
+### Changed
+
+- No point rules, voting behavior, rewards, account storage, transfer logic, migration rules, or portable configuration formats changed in this release candidate.
+- README remains the current capability overview; version history remains in this CHANGELOG.
+
 ## 0.2.0
 
 Poll-engine expansion and stability/polish release.
