@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.1 — Redemption Chat & Sidebar UX Polish
+
+### Fixed
+
+- Removed inherited Font Awesome Chat icon classes from the player redemption sidebar button; only the module's native-sized `fa-award` icon is displayed.
+- Standardized GM and player redemption announcements using a single readable Chat Card layout with separate Character, Benefit, Effect, Cost and Redeemed by fields.
+- Player redemption Chat announcements use the redeeming Actor as the speaker, while the GM remains the actual document creator and authorized World-ledger committer. Each card identifies whether the action came from a Player or GM.
+
+### Added
+
+- World setting **Show Remaining Balance in Redemption Chat Cards** (default OFF), applying consistently to both player-initiated and GM-initiated redemptions. When OFF, neither the remaining balance nor negative-balance/debt detail is emitted in the public Chat Card content. Benefit cost remains public.
+
+### Unchanged
+
+- No changes to point accounting, World storage, Voting Profiles, benefits, identity bindings, request authorization, or GM-only Refund/reversal behavior.
+
+
 ## 0.4.0 — Player Self-Service Reward Redemption
 
 ### Added

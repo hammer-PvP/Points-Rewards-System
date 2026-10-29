@@ -431,3 +431,17 @@
 .pr-refund-action { width: 100%; margin: 2px 0 0; padding: 6px 9px; border: 1px solid rgba(209,176,107,.5); border-radius: 4px; background: rgba(70,50,85,.4); color: #eee; font-weight: 700; cursor: pointer; }
 .pr-refund-action:disabled { opacity: .6; cursor: default; }
 @media (max-width: 580px) { .pr-player-redemption-footer { align-items: stretch; flex-direction: column; } .pr-player-redemption-footer > div { justify-content: flex-end; } }
+
+/* 0.4.1: consistent, readable, privacy-aware redemption Chat Card. */
+.pr-redeem-chat-body { padding: 11px 12px 10px; display: grid; gap: 9px; min-width: 0; }
+.pr-redeem-chat-field { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.pr-redeem-chat-label { color: #c5ad7c; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.pr-redeem-chat-value { color: #f5f0e8; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.pr-redeem-chat-benefit { color: #e9cb91; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.pr-chat-card .pr-redeem-chat-description { margin: 0; padding: 3px 0 0; white-space: pre-wrap; color: #e8e2d9; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.pr-chat-card > footer.pr-redeem-chat-footer { display: grid; gap: 5px; padding: 9px 12px; }
+.pr-redeem-summary-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.pr-redeem-summary-row > span { flex: 0 0 auto; color: #b7b1bc; }
+.pr-redeem-summary-row > strong { min-width: 0; color: #f4e3c5; text-align: right; overflow-wrap: anywhere; }
+.pr-redeem-origin { padding-top: 5px; border-top: 1px solid rgba(255,255,255,.07); }
+.pr-redeem-debt-note { color: #ffb4b4; text-align: right; font-size: 10px; }

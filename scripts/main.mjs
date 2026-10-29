@@ -121,7 +121,13 @@ function injectRedemptionSidebarControl(element) {
   const button = document.createElement(chatTab.tagName === "A" ? "a" : "button");
   if (button.tagName === "BUTTON") button.type = "button";
   else button.href = "#";
-  button.className = `${chatTab.className || ""} pr-sidebar-redeem-control`.replace(/\bactive\b/g, "").trim();
+  // Chat tabs may themselves use Font Awesome icon classes on the element.
+  // Reusing those classes adds a second icon (often the speech bubble) via ::before.
+  // Preserve only native control/layout classes; our single icon lives in the child <i>.
+  const tabClasses = String(chatTab.className || "").split(/\s+/).filter(cls =>
+    cls && cls !== "active" && !/^(?:fa(?:-.*)?|fas|far|fab|fal|fat|fad)$/.test(cls)
+  );
+  button.className = [...tabClasses, "pr-sidebar-redeem-control"].join(" ");
   button.dataset.tooltip = "Redeem Benefit — Polls, Points & Rewards";
   button.setAttribute("aria-label", "Redeem Benefit");
   button.innerHTML = '<i class="fa-solid fa-award" aria-hidden="true"></i>';

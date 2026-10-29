@@ -131,10 +131,14 @@ export class PlayerRedemptionService {
       if (!alreadyPosted) {
         try {
           await ChatMessage.create({
-            content: this.#cardContent(actor, benefit, cost, remaining),
+            content: this.chatCardContent({ actor, benefit, cost, remaining, redeemedBy: "Player", requestedByName: user.name }),
+            // The GM is still the author/committer. Speaker identifies the character
+            // who actually redeemed, rather than the GM relaying the request.
+            speaker: ChatMessage.getSpeaker({ actor, alias: actor.name }),
+            style: CONST.CHAT_MESSAGE_STYLES.IC,
             flags: { [MODULE_ID]: { playerRedemption: {
               transactionId: entry.id, actorId: actor.id, accountType: entry.accountType,
-              accountId: entry.accountId, cost, requestId: request.id, refunded: false
+              accountId: entry.accountId, cost, requestId: request.id, requestedByUserId: user.id, refunded: false
             } } }
           });
         } catch (chatError) {
@@ -152,12 +156,34 @@ export class PlayerRedemptionService {
     await user.setFlag(MODULE_ID, this.RESULT_FLAG, result);
   }
 
-  static #cardContent(actor, benefit, cost, remaining) {
-    return `<section class="pr-chat-card pr-chat-redeem pr-player-redeem-card"><header><i class="fa-solid fa-gift"></i><strong>Reward Redeemed</strong></header>`
-      + `<p><strong>${htmlEscape(actor.name)}</strong> redeemed <strong>${htmlEscape(benefit.name)}</strong>.</p>`
-      + `<p>${htmlEscape(benefit.description)}</p>`
-      + `<footer>Cost: <strong>-${cost} Points</strong> · Remaining balance: <strong>${remaining}</strong>${remaining < 0 ? ` <span class="pr-debt-badge">DEBT ${Math.abs(remaining)}</span>` : ""}</footer>`
-      + `<div class="pr-chat-refund-slot"></div></section>`;
+  /** Identical public card for player and GM redemption. Never include private
+   * account data unless the GM explicitly enables balance disclosure. */
+  static chatCardContent({ actor, benefit, cost, remaining, redeemedBy, requestedByName }) {
+    const config = SettingsService.get();
+    const showBalance = config.showRedemptionBalanceInChat === true;
+    const source = redeemedBy === "GM" ? "GM" : "Player";
+    const requester = String(requestedByName ?? "").trim();
+    const actorName = htmlEscape(actor?.name ?? "Unknown Character");
+    const benefitName = htmlEscape(benefit?.name ?? "Unknown Benefit");
+    const description = htmlEscape(benefit?.description ?? "");
+    const points = Number(cost);
+    const balance = Number(remaining);
+    const origin = `${source}${requester ? ` · ${htmlEscape(requester)}` : ""}`;
+    const balanceHTML = showBalance && Number.isFinite(balance)
+      ? `<div class="pr-redeem-summary-row"><span>Remaining balance</span><strong>${balance} Points</strong></div>`
+        + (balance < 0 ? `<div class="pr-redeem-debt-note">Negative balance</div>` : "")
+      : "";
+    return `<section class="pr-chat-card pr-chat-redeem pr-redeem-chat-card">`
+      + `<header><i class="fa-solid fa-gift" aria-hidden="true"></i><strong>Reward Redeemed</strong></header>`
+      + `<div class="pr-redeem-chat-body">`
+      + `<div class="pr-redeem-chat-field"><span class="pr-redeem-chat-label">Character</span><strong class="pr-redeem-chat-value">${actorName}</strong></div>`
+      + `<div class="pr-redeem-chat-field"><span class="pr-redeem-chat-label">Benefit</span><strong class="pr-redeem-chat-benefit">${benefitName}</strong></div>`
+      + `<p class="pr-redeem-chat-description">${description}</p>`
+      + `</div><footer class="pr-redeem-chat-footer">`
+      + `<div class="pr-redeem-summary-row"><span>Cost</span><strong>-${points} Points</strong></div>`
+      + balanceHTML
+      + `<div class="pr-redeem-summary-row pr-redeem-origin"><span>Redeemed by</span><strong>${origin}</strong></div>`
+      + `</footer><div class="pr-chat-refund-slot"></div></section>`;
   }
 
   static decorateChat(message, html) {

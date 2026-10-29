@@ -2,6 +2,7 @@ import { MODULE_ID, POINT_METHODS } from "../constants.mjs";
 import { AccountService } from "../services/account-service.mjs";
 import { SettingsService } from "../services/settings-service.mjs";
 import { VotingService } from "../services/voting-service.mjs";
+import { PlayerRedemptionService } from "../services/player-redemption-service.mjs";
 import { TieBreakApp } from "./tie-break-app.mjs";
 import { confirmDialog, htmlEscape, randomId } from "../utils.mjs";
 
@@ -394,7 +395,12 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
       const remaining = result.account.balance;
       await ChatMessage.create({
-        content: `<section class="pr-chat-card pr-chat-redeem"><header><i class="fa-solid fa-gift"></i><strong>Reward Redeemed</strong></header><p><strong>${htmlEscape(actor.name)}</strong> activated <strong>${htmlEscape(name)}</strong> — ${htmlEscape(description)} <span class="pr-chat-cost">-${cost} points</span></p><footer>Remaining balance: <strong>${remaining}</strong>${remaining < 0 ? ` <span class="pr-debt-badge">DEBT ${Math.abs(remaining)}</span>` : ""}</footer></section>`
+        content: PlayerRedemptionService.chatCardContent({
+          actor, benefit: { name, description }, cost, remaining,
+          redeemedBy: "GM", requestedByName: game.user.name
+        }),
+        speaker: ChatMessage.getSpeaker({ actor, alias: actor.name }),
+        style: CONST.CHAT_MESSAGE_STYLES.IC
       });
       ui.notifications.info(`${actor.name} redeemed ${name} for ${cost} points.`);
       this.activeTab = "redeem";

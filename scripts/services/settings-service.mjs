@@ -93,6 +93,8 @@ export class SettingsService {
     merged.allowNegativeBalance = merged.allowNegativeBalance === true;
     merged.postVotingResultsToChat = merged.postVotingResultsToChat !== false;
     merged.showSheetPoints = merged.showSheetPoints !== false;
+    // Existing Worlds and fresh installs both keep remaining balances private by default.
+    merged.showRedemptionBalanceInChat = merged.showRedemptionBalanceInChat === true;
 
     const rawProfiles = Array.isArray(raw.votingProfiles) ? raw.votingProfiles : null;
     const legacyCategories = Array.isArray(raw.categories) ? raw.categories : [];

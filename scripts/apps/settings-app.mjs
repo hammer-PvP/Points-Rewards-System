@@ -491,6 +491,7 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
       allowNegativeBalance: Boolean(root.querySelector('[name="allowNegativeBalance"]')?.checked),
       postVotingResultsToChat: Boolean(root.querySelector('[name="postVotingResultsToChat"]')?.checked),
       showSheetPoints: Boolean(root.querySelector('[name="showSheetPoints"]')?.checked),
+      showRedemptionBalanceInChat: Boolean(root.querySelector('[name="showRedemptionBalanceInChat"]')?.checked),
       votingProfiles,
       giveReasons,
       benefits

@@ -1,6 +1,6 @@
 export const MODULE_ID = "points-and-rewards";
 export const MODULE_TITLE = "Polls, Points & Rewards";
-export const MODULE_VERSION = "0.4.0";
+export const MODULE_VERSION = "0.4.1";
 export const SUPPORT_URL = "https://buymeacoffee.com/hammer.pvp";
 
 export const POINT_METHODS = Object.freeze({
@@ -82,6 +82,7 @@ export function defaultConfig() {
     allowNegativeBalance: false,
     postVotingResultsToChat: true,
     showSheetPoints: true,
+    showRedemptionBalanceInChat: false,
     votingProfiles: [profile],
     giveReasons: [],
     benefits: []
