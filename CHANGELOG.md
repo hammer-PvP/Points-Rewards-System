@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 — Player Self-Service Reward Redemption
+
+### Added
+
+- Player-facing Redeem Benefit window, reached through the right sidebar immediately after Chat or from the existing Points sheet/ledger view.
+- Actor selector resolved from current Owner permissions **and** persistent Primary User identity, using the configured World accounts and existing Point Method.
+- Benefit description/cost/current balance/after-balance preview, insufficient-points guard, negative-balance warning, and final confirmation.
+- GM-processed player redemption requests conveyed by server-authorized User document updates; a player cannot directly commit a point-balance change.
+- Chat announcement identifying the redeeming character, benefit and effect, with a GM-only Refund button linked to the original transaction and guarded against double refunds.
+- The existing configured catalog, World ledger, account resolution, and reversal rules are reused without migration.
+
+
 ## 0.3.0 — Release Candidate
 
 Final release-candidate stabilization pass before the planned 1.0 release.

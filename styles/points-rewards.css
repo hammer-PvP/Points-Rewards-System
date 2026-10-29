@@ -399,3 +399,35 @@
   .pr-question-head > .pr-row-actions, .pr-option-row > .pr-row-actions { justify-self: end; }
   .pr-ballot-options { grid-template-columns: 1fr; }
 }
+
+/* Player self-service reward redemption (working implementation). */
+.pr-sidebar-redeem-control { cursor: pointer; }
+.pr-sidebar-redeem-control:hover { filter: brightness(1.12); }
+.pr-sheet-redeem-action { margin: 12px 0; display: flex; justify-content: flex-start; }
+.pr-sheet-redeem-action button { width: auto; display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid rgba(209,176,107,.45); border-radius: 4px; background: rgba(70,50,85,.35); color: #eee; font-weight: 700; cursor: pointer; }
+.pr-sheet-redeem-action button:hover { border-color: #d1b06b; }
+.pr-sheet-redeem-action button i { color: #d1b06b; }
+.pr-player-redemption-header { min-height: 84px; }
+.pr-player-redemption-header .pr-brand h1 { font-size: 21px; }
+.pr-player-redemption-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 17px 20px; }
+.pr-player-redemption-body .pr-field { gap: 7px; }
+.pr-player-redemption-body select { min-height: 34px; }
+.pr-character-fixed { display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--pr-border); border-radius: 5px; padding: 8px 10px; background: rgba(255,255,255,.035); font-weight: 400; }
+.pr-character-fixed span { color: var(--pr-gold); }
+.pr-player-benefit-preview { flex: 1 0 125px; min-height: 125px; max-height: 240px; overflow-y: auto; padding: 13px 14px; border: 1px solid var(--pr-border); border-radius: 6px; background: rgba(70,50,85,.22); }
+.pr-player-benefit-preview small { color: var(--pr-muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.pr-player-benefit-preview h2 { margin: 8px 0; font-size: 18px; color: var(--pr-gold); }
+.pr-player-benefit-preview p { margin: 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+.pr-player-balance-summary { display: grid; gap: 7px; padding: 10px 12px; border-radius: 5px; background: rgba(255,255,255,.025); }
+.pr-player-balance-summary > div { display: flex; justify-content: space-between; gap: 12px; }
+.pr-player-balance-summary > div span { color: var(--pr-muted); }
+.pr-player-balance-summary > div strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.pr-player-balance-summary .pr-player-after { padding-top: 9px; border-top: 1px solid var(--pr-border); color: var(--pr-gold); }
+.pr-player-balance-summary > p { margin: 3px 0 0; font-size: 11px; color: var(--pr-warning); }
+.pr-player-redemption-footer > div { display: flex; gap: 8px; }
+.pr-player-redemption-footer button { width: auto; min-width: 92px; }
+.pr-chat-refund-slot { padding: 0 10px 9px; }
+.pr-chat-refund-slot:empty { display: none; }
+.pr-refund-action { width: 100%; margin: 2px 0 0; padding: 6px 9px; border: 1px solid rgba(209,176,107,.5); border-radius: 4px; background: rgba(70,50,85,.4); color: #eee; font-weight: 700; cursor: pointer; }
+.pr-refund-action:disabled { opacity: .6; cursor: default; }
+@media (max-width: 580px) { .pr-player-redemption-footer { align-items: stretch; flex-direction: column; } .pr-player-redemption-footer > div { justify-content: flex-end; } }

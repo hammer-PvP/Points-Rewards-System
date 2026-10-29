@@ -5,6 +5,7 @@
   </header>
   {{#if isDebt}}<div class="pr-debt-banner"><i class="fa-solid fa-triangle-exclamation"></i><strong>POINT DEBT</strong><span>Earn {{debt}} point(s) to return to zero.</span></div>{{/if}}
   <main class="pr-ledger-body">
+    {{#if canRedeem}}<div class="pr-sheet-redeem-action"><button type="button" data-action="open-player-redeem"><i class="fa-solid fa-gift"></i> Redeem Benefit</button></div>{{/if}}
     <div class="pr-section-header"><div><h2>Recent Activity</h2><p>Last 10 point movements.</p></div></div>
     {{#if entries.length}}
       <div class="pr-ledger-list">

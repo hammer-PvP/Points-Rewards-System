@@ -1,0 +1,35 @@
+<div class="pr-shell pr-player-redemption-shell">
+  <header class="pr-app-header pr-player-redemption-header">
+    <div class="pr-brand"><i class="fa-solid fa-award"></i><div><span class="pr-eyebrow">Polls, Points & Rewards</span><h1>Redeem Benefit</h1><p>Spend points on a benefit configured by your GM.</p></div></div>
+  </header>
+  <main class="pr-player-redemption-body">
+    {{#if hasActors}}
+      <label class="pr-field">Character
+        {{#if hasMultipleActors}}
+        <select name="character">{{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}} — {{balance}} Points</option>{{/each}}</select>
+        {{else}}
+        {{#each actors}}<div class="pr-character-fixed"><strong>{{name}}</strong><span>{{balance}} Points</span></div>{{/each}}
+        {{/if}}
+      </label>
+      {{#if hasBenefits}}
+      <label class="pr-field">Benefit
+        <select name="benefit">{{#each benefits}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}} — {{cost}} Points</option>{{/each}}</select>
+      </label>
+      <section class="pr-player-benefit-preview" aria-live="polite">
+        <small>BENEFIT EFFECT</small><h2 data-benefit-name></h2><p data-benefit-description></p>
+      </section>
+      <section class="pr-player-balance-summary">
+        <div><span>Current Balance</span><strong data-current-balance></strong></div>
+        <div><span>Cost</span><strong data-cost></strong></div>
+        <div class="pr-player-after"><span>After Redemption</span><strong data-after-balance></strong></div>
+        <p data-debt-warning hidden></p>
+      </section>
+      {{else}}
+      <div class="pr-info-card"><i class="fa-solid fa-gift"></i><div><strong>No benefits configured</strong><p>Ask the GM to configure redeemable benefits.</p></div></div>
+      {{/if}}
+    {{else}}
+      <div class="pr-info-card"><i class="fa-solid fa-user-slash"></i><div><strong>No eligible characters</strong><p>You need an owned Actor linked to you as Primary User in Points & Rewards.</p></div></div>
+    {{/if}}
+  </main>
+  <footer class="pr-footer pr-player-redemption-footer"><span>The GM can refund an accidental redemption in Chat.</span><div><button type="button" data-action="cancel">Cancel</button><button class="pr-primary" type="button" data-action="confirm-redeem" {{#unless hasBenefits}}disabled{{/unless}} {{#unless hasActors}}disabled{{/unless}}><i class="fa-solid fa-gift"></i> Redeem</button></div></footer>
+</div>

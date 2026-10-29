@@ -6,6 +6,8 @@ import { WorldStoreService } from "./services/world-store-service.mjs";
 import { GMManagerApp } from "./apps/gm-manager-app.mjs";
 import { PointsRewardsSettingsApp } from "./apps/settings-app.mjs";
 import { PointsLedgerApp } from "./apps/points-ledger-app.mjs";
+import { PlayerRedemptionApp } from "./apps/player-redemption-app.mjs";
+import { PlayerRedemptionService } from "./services/player-redemption-service.mjs";
 import { SupportCreatorApp } from "./apps/support-creator-app.mjs";
 import { asRoot, hasModuleData, htmlEscape, isActorDirectoryApp } from "./utils.mjs";
 
@@ -40,6 +42,7 @@ Hooks.once("ready", async () => {
       if (integrity?.ok !== false) {
         await AccountService.migrateLegacyFlags();
         await AccountService.ensureConfiguredPrimaryUsers();
+        PlayerRedemptionService.scanPending();
       }
     } catch (error) {
       console.error(`${MODULE_ID} | World storage initialization failed.`, error);
@@ -47,14 +50,19 @@ Hooks.once("ready", async () => {
     }
   }
   setTimeout(() => void VotingService.maybePromptCurrentUser(), 500);
+  injectRedemptionSidebarControl(ui.sidebar?.element ?? document);
 });
 
 Hooks.on("renderApplicationV2", (app, element) => {
   if (isActorDirectoryApp(app)) injectActorDirectoryTool(app, element);
+  if (app === ui.sidebar) injectRedemptionSidebarControl(element);
   if (isActorSheetApplication(app)) decorateActorSheet(app, element);
 });
 
 Hooks.on("renderActorDirectory", (app, html) => injectActorDirectoryTool(app, html));
+Hooks.on("renderSidebar", (app, html) => injectRedemptionSidebarControl(asRoot(html, app)));
+Hooks.on("renderChatMessageHTML", (message, html) => PlayerRedemptionService.decorateChat(message, html));
+Hooks.on("renderChatMessage", (message, html) => PlayerRedemptionService.decorateChat(message, html));
 
 Hooks.on("renderActorSheet", (app, html) => {
   const root = asRoot(html, app);
@@ -82,20 +90,48 @@ Hooks.on("updateActor", (actor, changes) => {
 });
 
 Hooks.on("updateUser", (_user, changes) => {
-  if (!hasModuleFlagChange(changes)) return;
-  refreshVisiblePointSurfaces();
+  PlayerRedemptionService.onUpdateUser(_user, changes);
+  const moduleFlags = changes?.flags?.[MODULE_ID] ?? {};
+  if (Object.keys(moduleFlags).some(key => !["redemptionRequest", "redemptionResult"].includes(key))) refreshVisiblePointSurfaces();
 });
 
 Hooks.on("updateSetting", setting => {
   if (setting?.key === `${MODULE_ID}.worldState`) refreshVisiblePointSurfaces();
 });
 
-Hooks.on(`${MODULE_ID}.pointsChanged`, ({ actor }) => refreshVisiblePointSurfaces(actor));
+Hooks.on(`${MODULE_ID}.pointsChanged`, ({ actor }) => {
+  refreshVisiblePointSurfaces(actor);
+  if (PlayerRedemptionApp.current?.rendered && !PlayerRedemptionApp.current._busy) void PlayerRedemptionApp.current.render({ force: true });
+});
 Hooks.on(`${MODULE_ID}.methodMigrated`, () => refreshVisiblePointSurfaces());
 Hooks.on(`${MODULE_ID}.primaryUsersChanged`, () => refreshVisiblePointSurfaces());
 Hooks.on(`${MODULE_ID}.voteUpdated`, () => {
   if (GMManagerApp.current?.rendered && !GMManagerApp.current._busy) void GMManagerApp.current.render({ force: true });
 });
+
+/** One native-looking shortcut, immediately after the Chat tab; not a new sidebar tab. */
+function injectRedemptionSidebarControl(element) {
+  if (game.user?.isGM) return;
+  const root = element instanceof HTMLElement ? element : element?.[0] ?? document;
+  const chatTab = root.querySelector?.('#sidebar-tabs [data-tab="chat"], #sidebar nav [data-tab="chat"], nav#sidebar-tabs [data-tab="chat"]')
+    ?? document.querySelector('#sidebar-tabs [data-tab="chat"], #sidebar nav [data-tab="chat"]');
+  if (!chatTab?.parentElement) return;
+  const nav = chatTab.parentElement;
+  if (nav.querySelector('.pr-sidebar-redeem-control')) return;
+  const button = document.createElement(chatTab.tagName === "A" ? "a" : "button");
+  if (button.tagName === "BUTTON") button.type = "button";
+  else button.href = "#";
+  button.className = `${chatTab.className || ""} pr-sidebar-redeem-control`.replace(/\bactive\b/g, "").trim();
+  button.dataset.tooltip = "Redeem Benefit — Polls, Points & Rewards";
+  button.setAttribute("aria-label", "Redeem Benefit");
+  button.innerHTML = '<i class="fa-solid fa-award" aria-hidden="true"></i>';
+  button.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    PlayerRedemptionApp.open();
+  });
+  chatTab.after(button);
+}
 
 function injectActorDirectoryTool(app, element) {
   if (!game.user.isGM) return;
@@ -224,6 +260,12 @@ function injectDnd5ePointsTab(actor, root) {
   panel.hidden = true;
   samplePanel.parentElement.append(panel);
   refreshDnd5ePanel(actor, root);
+  panel.addEventListener("click", event => {
+    const redeemButton = event.target.closest?.('[data-action="open-player-redeem"]');
+    if (!redeemButton) return;
+    event.preventDefault();
+    PlayerRedemptionApp.open(actor);
+  });
 
   const leavePoints = () => {
     for (const candidate of nativePanels) candidate.classList.remove("pr-native-tab-suppressed");
@@ -268,7 +310,9 @@ function refreshDnd5ePanel(actor, root) {
   }).join("") : '<div class="pr-empty-state"><i class="fa-solid fa-receipt"></i><p>No point movements yet.</p></div>';
   const debt = account.balance < 0 ? `<div class="pr-debt-banner"><i class="fa-solid fa-triangle-exclamation"></i><strong>POINT DEBT:</strong> earn ${Math.abs(account.balance)} point(s) to return to zero.</div>` : "";
   const shared = config.pointMethod === "account" ? `<span class="pr-sheet-shared"><i class="fa-solid fa-users"></i> Shared account: ${htmlEscape(target?.name ?? "Unassigned User")}</span>` : "";
-  panel.innerHTML = `<div class="pr-sheet-points-content"><header><div><h2>Points</h2>${shared}</div><div class="pr-sheet-balance ${account.balance < 0 ? "debt" : ""}">${account.balance}<small>PTS</small></div></header>${debt}<section><h3>Recent Activity <small>Last 10 movements</small></h3>${rows}</section></div>`;
+  const redeem = !game.user.isGM && PlayerRedemptionService.canRedeemActor(actor)
+    ? '<div class="pr-sheet-redeem-action"><button type="button" data-action="open-player-redeem"><i class="fa-solid fa-gift"></i> Redeem Benefit</button></div>' : "";
+  panel.innerHTML = `<div class="pr-sheet-points-content"><header><div><h2>Points</h2>${shared}</div><div class="pr-sheet-balance ${account.balance < 0 ? "debt" : ""}">${account.balance}<small>PTS</small></div></header>${debt}${redeem}<section><h3>Recent Activity <small>Last 10 movements</small></h3>${rows}</section></div>`;
 }
 
 function refreshVisiblePointSurfaces(actor = null) {

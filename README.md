@@ -102,7 +102,7 @@ If no saved reason exists, an editable symbolic **Default +1** row is shown unti
 
 ## Redeem Benefits
 
-Benefits are always preconfigured and are redeemed one Actor at a time.
+Benefits are always preconfigured and are redeemed one Actor at a time. The GM can redeem directly, or an eligible player can initiate a self-service redemption through the sidebar.
 
 - Name, description, and positive cost are required.
 - There is no Custom redemption.
@@ -112,7 +112,11 @@ Benefits are always preconfigured and are redeemed one Actor at a time.
 - Optional negative balances allow a GM to intentionally create point debt with a clear warning.
 - Redemption writes a negative ledger entry and posts a Chat announcement with Actor, benefit, description, cost, and remaining balance.
 
-If no saved benefit exists, an editable symbolic **Default / 1 point** benefit is shown until the GM saves a real benefit.
+Players use the **award icon directly below Chat in the right sidebar** to open a lightweight redemption window. A player with several owned Actors linked to them as **Primary User** selects the character that will be named in the Chat announcement. The same window opens preselected from the Points tab on a D&D5e character sheet or from the generic Points ledger on other systems.
+
+Player self-service redemption always rechecks current Actor ownership, Primary User binding, the configured benefit, current balance, and negative-balance policy on the GM client before committing. It debits the authoritative World ledger, then publishes a Chat Card displaying character, benefit, effect, cost and remaining balance. On that card, a **GM-only Refund** action creates an idempotent ledger reversal without removing the original debit. A GM needs to be online to process self-service redemption requests. Actor control granted only temporarily to someone who is not the Actor's Primary User does not grant access to that character's point account.
+
+If no saved benefit exists, an editable symbolic **Default / 1 point** benefit is shown until the GM saves a real benefit. Virtual defaults are never redeemable.
 
 ## Player point view
 

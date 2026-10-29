@@ -1,6 +1,8 @@
 import { MODULE_ID, POINT_METHODS } from "../constants.mjs";
 import { AccountService } from "../services/account-service.mjs";
 import { SettingsService } from "../services/settings-service.mjs";
+import { PlayerRedemptionService } from "../services/player-redemption-service.mjs";
+import { PlayerRedemptionApp } from "./player-redemption-app.mjs";
 import { formatDateTime, formatSigned } from "../utils.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -36,12 +38,18 @@ export class PointsLedgerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return super.close(options);
   }
 
+  _onRender(context, options) {
+    super._onRender(context, options);
+    this.element?.querySelector('[data-action="open-player-redeem"]')?.addEventListener("click", () => PlayerRedemptionApp.open(this.actor));
+  }
+
   async _prepareContext() {
     const config = SettingsService.get();
     const target = AccountService.targetFor(this.actor, config.pointMethod);
     const account = AccountService.accountForActor(this.actor, config.pointMethod);
     return {
       actor: this.actor,
+      canRedeem: !game.user.isGM && PlayerRedemptionService.canRedeemActor(this.actor),
       balance: account.balance,
       isDebt: account.balance < 0,
       debt: Math.abs(Math.min(0, account.balance)),
