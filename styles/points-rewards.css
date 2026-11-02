@@ -61,6 +61,7 @@
 .pr-field input, .pr-field select, .pr-config-row input, .pr-config-row select { width: 100%; min-width: 0; }
 .pr-wide { grid-column: 1 / -1; }
 .pr-value-preview { align-self: stretch; display: grid; place-content: center; min-height: 34px; padding: 6px 12px; border: 1px solid rgba(131,202,143,.4); border-radius: 5px; background: rgba(49,98,57,.2); color: var(--pr-positive); font-size: 16px; font-weight: 800; }
+.pr-value-preview.negative { border-color: rgba(255,141,141,.5); background: rgba(126,36,36,.18); color: var(--pr-negative); }
 
 .pr-multiselect { position: relative; width: 100%; }
 .pr-multiselect > summary { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; border: 1px solid var(--pr-border); border-radius: 4px; background: rgba(255,255,255,.035); cursor: pointer; list-style: none; }

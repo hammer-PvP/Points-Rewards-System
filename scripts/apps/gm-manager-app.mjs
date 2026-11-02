@@ -135,6 +135,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     });
     root.querySelectorAll('input[name="recipient"]').forEach(input => input.addEventListener("change", () => this.#refreshRecipientLabel()));
     root.querySelector('[name="giveReason"]')?.addEventListener("change", () => this.#refreshGiveReason());
+    root.querySelector('[name="customPoints"]')?.addEventListener("input", () => this.#refreshGiveReason());
     root.querySelector('[data-action="give-points"]')?.addEventListener("click", event => void this.#givePoints(event));
 
     root.querySelector('[name="redeemActor"]')?.addEventListener("change", () => this.#refreshRedeem());
@@ -187,18 +188,16 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (custom) custom.hidden = !isCustom;
     if (preview) {
       if (isCustom) {
-        const amount = Math.max(1, Math.trunc(Number(this.element.querySelector('[name="customPoints"]')?.value) || 1));
-        preview.textContent = `+${amount} each`;
+        const raw = String(this.element.querySelector('[name="customPoints"]')?.value ?? "").trim();
+        const amount = Number(raw);
+        const valid = raw !== "" && Number.isSafeInteger(amount) && amount !== 0;
+        preview.textContent = valid ? `${amount > 0 ? "+" : ""}${amount} each` : "Enter non-zero whole points";
+        preview.classList.toggle("negative", valid && amount < 0);
       } else {
         preview.textContent = `+${Math.max(1, Math.trunc(Number(option?.dataset.points) || 1))} each`;
+        preview.classList.remove("negative");
       }
     }
-    this.element.querySelector('[name="customPoints"]')?.addEventListener("input", () => {
-      if (select.value === "__custom__" && preview) {
-        const amount = Math.max(1, Math.trunc(Number(this.element.querySelector('[name="customPoints"]')?.value) || 1));
-        preview.textContent = `+${amount} each`;
-      }
-    }, { once: true });
   }
 
   async #startVote(event) {
@@ -257,8 +256,10 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (reasonSelect?.value === "__custom__") {
       title = String(this.element.querySelector('[name="customReason"]')?.value ?? "").trim();
       description = String(this.element.querySelector('[name="customDescription"]')?.value ?? "").trim();
-      points = Math.max(1, Math.trunc(Number(this.element.querySelector('[name="customPoints"]')?.value) || 1));
+      const raw = String(this.element.querySelector('[name="customPoints"]')?.value ?? "").trim();
+      points = Number(raw);
       if (!title) return ui.notifications.warn("Enter a reason for the custom award.");
+      if (!raw || !Number.isSafeInteger(points) || points === 0) return ui.notifications.warn("Custom points must be a non-zero whole number (e.g. +5 or -5).");
     } else {
       title = String(option?.dataset.title ?? option?.textContent ?? "Point Award").trim();
       description = String(option?.dataset.description ?? "");
@@ -267,30 +268,43 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const rows = AccountService.accountRows(config).filter(row => recipientIds.includes(row.id));
     if (!rows.length) return ui.notifications.warn("No valid recipients were selected.");
+    if (points < 0 && !config.allowNegativeBalance) {
+      const insufficient = rows.filter(row => row.balance + points < 0);
+      if (insufficient.length) return ui.notifications.warn(`Insufficient points for: ${insufficient.map(row => row.name).join(", ")}. Negative balances are disabled.`);
+    }
     const names = rows.map(row => `<li>${htmlEscape(row.name)}</li>`).join("");
+    const signedPoints = `${points > 0 ? "+" : ""}${points}`;
     const accepted = await confirmDialog({
-      title: "Confirm Point Award",
-      content: `<p><strong>${htmlEscape(title)}</strong> — +${points} points each</p><p>Recipients: ${rows.length}</p><ul>${names}</ul>`,
-      yes: `Confirm +${points} Each`
+      title: points < 0 ? "Confirm Point Adjustment" : "Confirm Point Award",
+      content: `<p><strong>${htmlEscape(title)}</strong> — ${signedPoints} points each</p><p>Recipients: ${rows.length}</p><ul>${names}</ul>`,
+      yes: `Confirm ${signedPoints} Each`,
+      danger: points < 0
     });
     if (!accepted) return;
 
     const batchId = randomId("batch");
     try {
       this._busy = true;
+      // Validate the balances again after confirmation, before committing any row.
+      if (points < 0 && !SettingsService.get().allowNegativeBalance) {
+        const currentRows = AccountService.accountRows(SettingsService.get()).filter(row => recipientIds.includes(row.id));
+        if (currentRows.length !== rows.length || currentRows.some(row => row.balance + points < 0)) {
+          throw new Error("A recipient's balance or eligibility changed. Reopen Give Points and review the adjustment.");
+        }
+      }
       for (const row of rows) {
         const actor = AccountService.resolveRowActor(row);
         if (!actor) continue;
         await AccountService.commit(actor, {
           delta: points,
-          type: "award",
+          type: points < 0 ? "adjustment" : "award",
           title,
           description,
           batchId,
           sourceId: `award:${batchId}:${row.id}`
         });
       }
-      ui.notifications.info(`${points} point(s) awarded to ${rows.length} recipient(s).`);
+      ui.notifications.info(`${Math.abs(points)} point(s) ${points < 0 ? "removed from" : "awarded to"} ${rows.length} recipient(s).`);
       this.activeTab = "give";
       await this.render({ force: true });
     } catch (error) {

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.2 — GM Custom Signed Point Adjustments
+
+### Changed
+
+- The existing **Give Points → Custom** amount now accepts non-zero signed whole numbers, allowing a GM to correct a balance by entering `-5` without creating a new fixed reason, benefit, or separate adjustment screen.
+- The Custom preview and confirmation display the actual signed amount; deductions are confirmed explicitly and recorded as negative `adjustment` commits with the GM's own reason and description.
+- Negative Custom adjustments respect **Allow Negative Balance**, including validating the recipient balances before a batch and again after the confirmation dialog. No selected account is charged if a pre-check fails.
+- The Custom preview updates on every input, including when the GM changes a negative value several times.
+
+### Unchanged
+
+- Existing saved **Give Point Reasons** remain positive-only and behave exactly as before. The account method, deduplication for shared accounts, ledger, voting, rewards, player redemption, Chat Cards, Refund, and all other module functionality are unchanged.
+
 ## 0.4.1 — Redemption Chat & Sidebar UX Polish
 
 ### Fixed

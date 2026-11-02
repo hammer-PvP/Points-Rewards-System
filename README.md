@@ -93,7 +93,8 @@ The GM Manager supports both single and batch awards.
 
 - Select one or many recipients with a checkbox multi-select.
 - Reusable **Give Point Reasons** have title, optional description, and a positive point value.
-- A **Custom** reason is always available for ad-hoc awards.
+- A **Custom** reason is always available for signed GM adjustments: a positive integer awards points, while a negative integer removes points from each selected account. A zero value is not allowed.
+- Saved Give Point Reasons remain positive-only. Custom deductions include a signed preview and confirmation, are recorded as their own ledger movements, and respect the World setting for negative balances.
 - Character-Based mode creates an individual commit per selected Actor.
 - Account-Wide mode deduplicates Actors that share the same Primary User so one batch award cannot accidentally credit the same shared account twice.
 - Every award is recorded in the ledger.
