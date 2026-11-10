@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.3 — Player Redemption Acknowledgement Hotfix
+
+### Fixed
+
+- A player's successful self-service redemption could display a red `undefined` notification even though the GM had already committed the debit and published the Chat Card. The `updateUser` hook can contain only changed fields of `redemptionResult`; the player now reads the **complete stored result** from their User document, matching it to the pending request ID before displaying the acknowledgement.
+- Player redemption notifications now use a safe readable fallback if a confirmation arrives without message text, rather than showing `undefined`.
+
+### Unchanged
+
+- No changes to point calculation, ledger commits, Actor/Primary User permissions, World State, Chat Cards, Refund, Polls, GM Give Points, or export/import.
+- Community suggestions for private points-earned notifications and non-destructive history cleanup remain outside this hotfix.
+
 ## 0.4.2 — GM Custom Signed Point Adjustments
 
 ### Changed

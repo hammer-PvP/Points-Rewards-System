@@ -117,14 +117,21 @@ export class PlayerRedemptionApp extends HandlebarsApplicationMixin(ApplicationV
     this.#updatePreview();
     try {
       const result = await PlayerRedemptionService.request(actor.id, benefit.id);
-      if (result.ok) {
-        ui.notifications.info(result.message);
+      // Never display an undefined notification even if an older GM client or
+      // unexpected response omits the message; the ledger is not changed here.
+      const message = typeof result?.message === "string" && result.message.trim()
+        ? result.message
+        : (result?.ok === true ? "Benefit redeemed successfully."
+          : result?.pending === true ? "Redemption submitted. Await the GM confirmation."
+          : "The redemption could not be confirmed. Check with the GM before trying again.");
+      if (result?.ok === true) {
+        ui.notifications.info(message);
         await this.close();
-      } else if (result.pending) {
-        ui.notifications.warn(result.message);
+      } else if (result?.pending === true) {
+        ui.notifications.warn(message);
         await this.close();
       } else {
-        ui.notifications.error(result.message);
+        ui.notifications.error(message);
         await this.render({ force: true });
       }
     } catch (error) {

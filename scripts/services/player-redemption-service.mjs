@@ -74,11 +74,26 @@ export class PlayerRedemptionService {
   static onUpdateUser(user, changes) {
     const flags = changes?.flags?.[MODULE_ID];
     if (!flags) return;
-    const result = flags[this.RESULT_FLAG];
-    if (user.id === game.user.id && result?.id && this.#inflight.has(result.id)) {
-      const resolve = this.#inflight.get(result.id);
-      this.#inflight.delete(result.id);
-      resolve(result);
+    const changedResult = flags[this.RESULT_FLAG];
+    if (user.id === game.user.id && changedResult?.id && this.#inflight.has(changedResult.id)) {
+      // updateUser provides a differential update. Unchanged result fields (notably
+      // ok and message) may be absent when the same benefit is redeemed again.
+      // Read the completed result from the updated User document, and correlate
+      // it with the exact pending request before resolving its promise.
+      const result = user.getFlag(MODULE_ID, this.RESULT_FLAG);
+      if (result?.id === changedResult.id) {
+        const resolve = this.#inflight.get(result.id);
+        this.#inflight.delete(result.id);
+        resolve({
+          id: result.id,
+          ok: result.ok === true,
+          pending: result.pending === true,
+          message: typeof result.message === "string" && result.message.trim()
+            ? result.message
+            : (result.ok === true ? "Benefit redeemed successfully." : "The redemption could not be confirmed."),
+          balance: result.balance
+        });
+      }
     }
     if (flags[this.REQUEST_FLAG] && isPrimaryGM()) this.#scheduleProcessing(user);
   }

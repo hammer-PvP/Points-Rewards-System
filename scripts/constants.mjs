@@ -1,6 +1,6 @@
 export const MODULE_ID = "points-and-rewards";
 export const MODULE_TITLE = "Polls, Points & Rewards";
-export const MODULE_VERSION = "0.4.2";
+export const MODULE_VERSION = "0.4.3";
 export const SUPPORT_URL = "https://buymeacoffee.com/hammer.pvp";
 
 export const POINT_METHODS = Object.freeze({
