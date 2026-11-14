@@ -38,6 +38,7 @@
         <label><input type="checkbox" name="postVotingResultsToChat" {{#if config.postVotingResultsToChat}}checked{{/if}}><span><strong>Post Poll Results to Chat</strong><small>Publish the final result when the GM closes a poll. Public profiles reveal voter names; Secret profiles show totals only.</small></span></label>
         <label><input type="checkbox" name="showSheetPoints" {{#if config.showSheetPoints}}checked{{/if}}><span><strong>Show Points on Actor Sheets</strong><small>D&D5e character sheets receive icon-only Points access. Other systems use a safe sheet fallback.</small></span></label>
         <label><input type="checkbox" name="showRedemptionBalanceInChat" {{#if config.showRedemptionBalanceInChat}}checked{{/if}}><span><strong>Show Remaining Balance in Redemption Chat Cards</strong><small>Default OFF. When disabled, the remaining balance and debt amount are not included in public Chat messages. The cost of the benefit remains visible.</small></span></label>
+        <label><input type="checkbox" name="notifyPointAdjustments" {{#if config.notifyPointAdjustments}}checked{{/if}}><span><strong>Notify Players of Point Adjustments</strong><small>Default ON. Send a private Chat message to the Primary User and GMs for GM point awards, Custom deductions, and redemption refunds. Poll awards already have their own announcement.</small></span></label>
       </div>
 
       <div class="pr-settings-card pr-portable-config">

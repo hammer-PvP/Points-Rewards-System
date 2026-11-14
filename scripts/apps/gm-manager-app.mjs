@@ -3,6 +3,7 @@ import { AccountService } from "../services/account-service.mjs";
 import { SettingsService } from "../services/settings-service.mjs";
 import { VotingService } from "../services/voting-service.mjs";
 import { PlayerRedemptionService } from "../services/player-redemption-service.mjs";
+import { PointsNotificationService } from "../services/points-notification-service.mjs";
 import { TieBreakApp } from "./tie-break-app.mjs";
 import { confirmDialog, htmlEscape, randomId } from "../utils.mjs";
 
@@ -118,6 +119,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     root.querySelector('[name="votingProfile"]')?.addEventListener("change", event => { this.selectedProfileId = String(event.currentTarget.value ?? ""); });
     root.querySelector('[data-action="start-vote"]')?.addEventListener("click", event => void this.#startVote(event));
     root.querySelector('[data-action="finish-vote"]')?.addEventListener("click", event => void this.#finishVote(event));
+    root.querySelector('[data-action="cancel-vote"]')?.addEventListener("click", event => void this.#cancelVote(event));
     root.querySelector('[data-action="remind-vote"]')?.addEventListener("click", event => {
       event.preventDefault();
       void VotingService.remindPending();
@@ -242,6 +244,25 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
+  async #cancelVote(event) {
+    event.preventDefault();
+    if (this._busy) return;
+    try {
+      this._busy = true;
+      const cancelled = await VotingService.cancel();
+      if (cancelled) {
+        ui.notifications.info("Poll cancelled. No points were awarded.");
+        this.activeTab = "voting";
+        await this.render({ force: true });
+      }
+    } catch (error) {
+      console.error(`${MODULE_ID} | Could not cancel poll.`, error);
+      ui.notifications.error(error.message, { permanent: true });
+    } finally {
+      this._busy = false;
+    }
+  }
+
   async #givePoints(event) {
     event.preventDefault();
     if (this._busy) return;
@@ -295,7 +316,7 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       for (const row of rows) {
         const actor = AccountService.resolveRowActor(row);
         if (!actor) continue;
-        await AccountService.commit(actor, {
+        const result = await AccountService.commit(actor, {
           delta: points,
           type: points < 0 ? "adjustment" : "award",
           title,
@@ -303,6 +324,9 @@ export class GMManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
           batchId,
           sourceId: `award:${batchId}:${row.id}`
         });
+        // Chat is best-effort; a failed notification must not halt a batch
+        // after the ledger successfully credited/debited its recipient.
+        await PointsNotificationService.notifyCommit(actor, result);
       }
       ui.notifications.info(`${Math.abs(points)} point(s) ${points < 0 ? "removed from" : "awarded to"} ${rows.length} recipient(s).`);
       this.activeTab = "give";

@@ -492,6 +492,7 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
       postVotingResultsToChat: Boolean(root.querySelector('[name="postVotingResultsToChat"]')?.checked),
       showSheetPoints: Boolean(root.querySelector('[name="showSheetPoints"]')?.checked),
       showRedemptionBalanceInChat: Boolean(root.querySelector('[name="showRedemptionBalanceInChat"]')?.checked),
+      notifyPointAdjustments: Boolean(root.querySelector('[name="notifyPointAdjustments"]')?.checked),
       votingProfiles,
       giveReasons,
       benefits

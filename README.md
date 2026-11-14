@@ -4,6 +4,10 @@
 
 The module ID remains **`points-and-rewards`**.
 
+## Private points notifications
+
+The **Notify Players of Point Adjustments** option in General Settings is enabled by default. Once a GM commits a Give Points award or Custom negative adjustment, a **private Chat whisper** goes to the linked Primary User and the GMs, showing the character, signed point amount, reason and optional description. A successful GM Refund of a Player Redemption also sends a private points-refunded notice. **Current/remaining point balances are not sent in these whispers.** Account-Wide batch awards notify once per committed account. Poll winner awards already have separate result announcements and do not produce this extra notification. Failed Chat delivery never reverses a successful ledger transaction.
+
 ## Core model
 
 A GM-selected **Actor Folder** is the module's live participant filter. Actors directly inside that folder are the current candidates/participants shown by Polls, Give Points, Redeem, and User/Actor normalization. Changing the selected folder never moves, resets, or deletes stored point data.
@@ -66,6 +70,8 @@ Ballot visibility is configured per Voting Profile.
 
 The GM can monitor completion, remind pending voters, finish early after confirmation, resolve configured ties, and finalize the poll. Point awards are committed only during finalization.
 
+An active poll can also be **cancelled by the GM**, including before anybody votes. Cancellation discards the session ballots without awarding points, records a compact administrative cancellation audit entry, sends a cancellation notice to Chat, and does not alter the selected Voting Profile.
+
 Existing pre-v0.2.0 Voting Categories are automatically normalized into a **Session Awards** Voting Profile.
 
 ## Point methods
@@ -115,7 +121,7 @@ Benefits are always preconfigured and are redeemed one Actor at a time. The GM c
 
 Players use the **award icon directly below Chat in the right sidebar** to open a lightweight redemption window. A player with several owned Actors linked to them as **Primary User** selects the character that will be named in the Chat announcement. The same window opens preselected from the Points tab on a D&D5e character sheet or from the generic Points ledger on other systems.
 
-Player self-service redemption always rechecks current Actor ownership, Primary User binding, the configured benefit, current balance, and negative-balance policy on the GM client before committing. It debits the authoritative World ledger, then publishes a Chat Card displaying character, benefit, effect, cost, and the requesting player. The card uses the redeeming Actor as its speaker while preserving the real GM commit author. Remaining balance is hidden unless the GM enables its public display. On that card, a **GM-only Refund** action creates an idempotent ledger reversal without removing the original debit. A GM needs to be online to process self-service redemption requests. Actor control granted only temporarily to someone who is not the Actor's Primary User does not grant access to that character's point account.
+Player self-service redemption always rechecks current Actor ownership, Primary User binding, the configured benefit, current balance, and negative-balance policy on the GM client before committing. It debits the authoritative World ledger, then publishes a Chat Card displaying character, benefit, effect, cost, and the requesting player. The card uses the redeeming Actor as its speaker while preserving the real GM commit author. Remaining balance is hidden unless the GM enables its public display. On that card, a **GM-only Refund** action creates an idempotent ledger reversal without removing the original debit. A GM needs to be online to process self-service redemption requests. Player and GM computer clocks are not compared when approving redemption requests; repeated submissions of one unanswered request reuse the same transaction identifier to avoid duplicate debits. Actor control granted only temporarily to someone who is not the Actor's Primary User does not grant access to that character's point account.
 
 If no saved benefit exists, an editable symbolic **Default / 1 point** benefit is shown until the GM saves a real benefit. Virtual defaults are never redeemable.
 

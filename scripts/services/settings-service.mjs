@@ -60,6 +60,7 @@ export class SettingsService {
   static async setRuntime(runtime) {
     const clean = foundry.utils.mergeObject(defaultRuntime(), runtime ?? {}, { inplace: false });
     clean.finalizedSessionIds = Array.from(new Set(clean.finalizedSessionIds ?? [])).slice(-100);
+    clean.cancelledSessions = (Array.isArray(clean.cancelledSessions) ? clean.cancelledSessions : []).filter(Boolean).slice(-100);
     await game.settings.set(MODULE_ID, "runtime", clean);
     return clean;
   }
@@ -95,6 +96,7 @@ export class SettingsService {
     merged.showSheetPoints = merged.showSheetPoints !== false;
     // Existing Worlds and fresh installs both keep remaining balances private by default.
     merged.showRedemptionBalanceInChat = merged.showRedemptionBalanceInChat === true;
+    merged.notifyPointAdjustments = merged.notifyPointAdjustments !== false;
 
     const rawProfiles = Array.isArray(raw.votingProfiles) ? raw.votingProfiles : null;
     const legacyCategories = Array.isArray(raw.categories) ? raw.categories : [];

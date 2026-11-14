@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.1 — Player Redemption Reliability Hotfix
+
+### Fixed
+
+- Removed the GM-side 120-second redemption expiration and the negative-age rejection that incorrectly treated differences between a player's computer clock and the GM's clock as an expired request. Ownership, Primary User, configured benefit, cost, balance and negative-balance policy still determine whether a redemption is authorized.
+- Removed the player's time-based gate for outstanding redemption requests. Retrying the **same** Actor/benefit while a request is unanswered now reuses the original request ID, with a new attempt marker to trigger processing; different requests remain blocked until the prior one is acknowledged.
+- Preserved idempotent ledger writes (source ID per redemption), player acknowledgement, public Chat Card and GM Refund behavior. No clock synchronization is required.
+
+### Unchanged
+
+- No changes to Polls, point awards, notifications, World storage, Primary User bindings, refunds, voting cancellation or portable configuration. The 25-second client wait is a non-final status notification, not a request expiration or permission check.
+
+
+## 0.5.0 — Private Point Notifications & Voting Cancellation
+
+### Added
+
+- **Notify Players of Point Adjustments** (World setting, default ON): private Chat whisper to the receiving Primary User and GMs after each successful GM Give Points commit, including positive preset awards, positive Custom amounts, and negative Custom adjustments. Cards show the Actor, signed amount, title/reason, optional description, and point method when account-wide; **no remaining balance is sent in the Chat message**.
+- The GM-only **Refund** action on a Player Redemption Chat Card now sends a private **Points Refunded** notification following a successful reversal, describing the redeemed benefit. Existing public redemption announcement and Refund logic remain intact.
+- Notification de-duplication tied to the committed transaction ID and scoped to affected accounts, so batch Give Points does not duplicate shared Account-Wide balances. Chat failures never roll back a successful ledger commit.
+- **Cancel Voting** control on an active poll, available even with zero submitted ballots. A GM confirms cancellation; ballots are discarded, no award commits are created, a minimal cancellation audit record is preserved, late votes are rejected, voters' open poll windows close, and a public cancellation message is posted. Voting Profiles are unchanged.
+
+### Unchanged
+
+- No new notifications for poll winner awards (the existing poll results already announce them), transfers, or point-method migrations.
+- No visible-history reset or ledger deletion. Point accounting, Primary User bindings, benefits, World storage, export/import and player redemption remain unchanged.
+
 ## 0.4.3 — Player Redemption Acknowledgement Hotfix
 
 ### Fixed

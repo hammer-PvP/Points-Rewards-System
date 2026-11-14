@@ -1,6 +1,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { AccountService } from "./account-service.mjs";
 import { SettingsService } from "./settings-service.mjs";
+import { PointsNotificationService } from "./points-notification-service.mjs";
 import { confirmDialog, htmlEscape, isPrimaryGM, randomId } from "../utils.mjs";
 
 /** Player requests are carried by their own User document, not an unauthenticated socket userId.
@@ -49,10 +50,18 @@ export class PlayerRedemptionService {
     if (!SettingsService.get().allowNegativeBalance && current < benefit.cost) throw new Error("Insufficient points.");
     const pending = game.user.getFlag(MODULE_ID, this.REQUEST_FLAG);
     const lastResult = game.user.getFlag(MODULE_ID, this.RESULT_FLAG);
-    if (pending?.id && pending.id !== lastResult?.id && Date.now() - Number(pending.createdAt || 0) < 60000) {
-      throw new Error("Your previous redemption is still being processed.");
+    const hasUnansweredRequest = Boolean(pending?.id && pending.id !== lastResult?.id);
+    if (hasUnansweredRequest && (pending.actorId !== actor.id || pending.benefitId !== benefit.id)) {
+      throw new Error("Your previous redemption is still being processed. Ask the GM to check it before requesting a different benefit.");
     }
-    const request = { id: randomId("player-redeem"), actorId: actor.id, benefitId: benefit.id, createdAt: Date.now() };
+    // A retry of an unanswered request MUST keep its original ID. A new
+    // attempt marker triggers an updateUser event without creating a second
+    // ledger debit if the GM already processed the original request.
+    // No wall-clock timestamp is used to authorize or expire redemptions.
+    const request = hasUnansweredRequest
+      ? { ...pending, attempt: randomId("retry") }
+      : { id: randomId("player-redeem"), actorId: actor.id, benefitId: benefit.id, attempt: randomId("submit") };
+    if (this.#inflight.has(request.id)) throw new Error("Your redemption is already being processed.");
     let timer;
     const outcome = new Promise(resolve => {
       timer = setTimeout(() => {
@@ -119,8 +128,9 @@ export class PlayerRedemptionService {
     if (!request?.id || previous?.id === request.id) return;
     const result = { id: request.id, ok: false, message: "Redemption was not approved." };
     try {
-      const age = Date.now() - Number(request.createdAt || 0);
-      if (age < 0 || age > 120000) throw new Error("The redemption request has expired. Please submit it again.");
+      // The GM and player can have different system clocks. Requests are
+      // authorized by ownership, Primary User, benefit validity and balance,
+      // never by a timestamp supplied by the player's computer.
       const actor = game.actors.get(String(request.actorId || ""));
       if (!this.canRedeemActor(actor, user)) throw new Error("Actor ownership or Primary User no longer permits this redemption.");
       const config = SettingsService.get();
@@ -249,7 +259,12 @@ export class PlayerRedemptionService {
       // Revalidate immediately before commit; sourceId makes repeat refunds idempotent.
       const latest = AccountService.accountForActor(actor, method);
       if (latest.ledger.some(row => row.sourceId === `reversal:${entry.id}`)) return;
-      await AccountService.reverse(actor, entry, method);
+      const reversal = await AccountService.reverse(actor, entry, method);
+      // Reversal is already committed at this point; private Chat feedback is
+      // best-effort and does not affect the refund or its idempotent source ID.
+      await PointsNotificationService.notifyCommit(actor, reversal, {
+        kind: "refund", title: entry.title, description: entry.description
+      });
       await message.setFlag(MODULE_ID, "playerRedemption", { ...flag, refunded: true });
       ui.notifications.info(`${flag.cost} points refunded to ${actor.name}.`);
     } catch (error) {

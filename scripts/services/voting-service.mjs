@@ -5,6 +5,9 @@ import { confirmDialog, htmlEscape, isPrimaryGM, randomId } from "../utils.mjs";
 
 export class VotingService {
   static SOCKET = `module.${MODULE_ID}`;
+  // Prevent a late ballot handler on this GM client from restoring a cancelled session.
+  static #cancellingSessionId = "";
+  static #ballotWriteQueue = Promise.resolve();
 
   static registerSocket() {
     game.socket.on(this.SOCKET, payload => void this.#onSocket(payload));
@@ -174,10 +177,65 @@ export class VotingService {
     }).sort((a, b) => a.userName.localeCompare(b.userName));
   }
 
+  static async cancel() {
+    if (!game.user?.isGM) throw new Error("Only a GM can cancel a poll.");
+    const session = this.active();
+    if (!session || session.status !== "open") throw new Error("There is no open poll to cancel.");
+    const submitted = Object.keys(session.ballots ?? {}).length;
+    const accepted = await confirmDialog({
+      title: "Cancel Voting?",
+      content: `<p>Cancel <strong>${htmlEscape(session.profileName)}</strong>?</p>`
+        + `<p>${submitted} ballot(s) have been submitted. They will not be counted.</p>`
+        + `<p><strong>No points will be awarded.</strong> The Voting Profile will be preserved.</p>`,
+      yes: "Cancel Voting",
+      danger: true
+    });
+    if (!accepted) return null;
+
+    // Guard the GM-side socket writer while the cancellation is persisted.
+    this.#cancellingSessionId = session.id;
+    try {
+      await this.#ballotWriteQueue;
+      const runtime = SettingsService.runtime();
+      const current = this.#normalizeSession(runtime.activeVote);
+      if (!current || current.id !== session.id || current.status !== "open") {
+        throw new Error("The poll changed while the cancellation was being confirmed. Nothing was cancelled.");
+      }
+      const record = {
+        sessionId: current.id,
+        status: "cancelled",
+        profileId: current.profileId,
+        profileName: current.profileName,
+        startedAt: current.createdAt,
+        cancelledAt: Date.now(),
+        cancelledBy: game.user.id,
+        submittedBallots: Object.keys(current.ballots ?? {}).length
+      };
+      runtime.cancelledSessions = [...(runtime.cancelledSessions ?? []), record].slice(-100);
+      runtime.activeVote = null;
+      await SettingsService.setRuntime(runtime);
+      game.socket.emit(this.SOCKET, { type: "vote-cancelled", sessionId: current.id });
+      Hooks.callAll(`${MODULE_ID}.voteUpdated`, null);
+      try {
+        await ChatMessage.create({
+          content: `<section class="pr-chat-card pr-chat-poll-cancelled">`
+            + `<header><i class="fa-solid fa-ban" aria-hidden="true"></i><strong>Poll Cancelled</strong></header>`
+            + `<p><strong>${htmlEscape(current.profileName)}</strong> was cancelled by the GM. No votes were counted and no points were awarded.</p>`
+            + `</section>`
+        });
+      } catch (chatError) {
+        console.error(`${MODULE_ID} | Poll was cancelled but its Chat notice could not be published.`, chatError);
+      }
+      return record;
+    } finally {
+      this.#cancellingSessionId = "";
+    }
+  }
+
   static async requestClose() {
     if (!game.user.isGM) return null;
     const session = this.active();
-    if (!session) throw new Error("There is no open poll.");
+    if (!session || session.status !== "open") throw new Error("There is no open poll.");
     const submitted = Object.keys(session.ballots ?? {}).length;
     const total = session.eligibleUserIds.length;
     if (submitted === 0) throw new Error("At least one ballot must be submitted before the poll can be finalized.");
@@ -198,7 +256,7 @@ export class VotingService {
     if (!game.user.isGM) throw new Error("Only a GM can finalize a poll.");
     const runtime = SettingsService.runtime();
     const session = this.#normalizeSession(runtime.activeVote);
-    if (!session) throw new Error("There is no poll to finalize.");
+    if (!session || session.status !== "open") throw new Error("There is no open poll to finalize.");
     if (runtime.finalizedSessionIds.includes(session.id)) {
       runtime.activeVote = null;
       await SettingsService.setRuntime(runtime);
@@ -342,7 +400,7 @@ export class VotingService {
     if (!payload || typeof payload !== "object") return;
     if (payload.type === "vote-open") return this.maybePromptCurrentUser();
     if (payload.type === "vote-remind") return this.maybePromptCurrentUser({ force: true });
-    if (payload.type === "vote-closed") {
+    if (payload.type === "vote-closed" || payload.type === "vote-cancelled") {
       const { VotingApp } = await import("../apps/voting-app.mjs");
       if (VotingApp.current?.sessionId === payload.sessionId) await VotingApp.current.close();
       return;
@@ -352,24 +410,30 @@ export class VotingService {
       return;
     }
     if (payload.type !== "vote-submit" || !isPrimaryGM()) return;
+    // Socket updates and GM cancellation share this per-client queue. Any
+    // submitted ballot that reaches the queue after cancellation is rejected.
+    const process = async () => {
+      if (this.#cancellingSessionId === payload.sessionId) return;
+      const runtime = SettingsService.runtime();
+      const session = this.#normalizeSession(runtime.activeVote);
+      if (!session || session.id !== payload.sessionId || session.status !== "open") return;
+      const userId = String(payload.userId ?? "");
+      if (!session.eligibleUserIds.includes(userId) || session.ballots?.[userId]) return;
 
-    const runtime = SettingsService.runtime();
-    const session = this.#normalizeSession(runtime.activeVote);
-    if (!session || session.id !== payload.sessionId || session.status !== "open") return;
-    const userId = String(payload.userId ?? "");
-    if (!session.eligibleUserIds.includes(userId) || session.ballots?.[userId]) return;
-
-    let selections;
-    try {
-      selections = this.#validateSelections(session, userId, payload.selections ?? {});
-    } catch (_error) {
-      return;
-    }
-    session.ballots ??= {};
-    session.ballots[userId] = selections;
-    runtime.activeVote = session;
-    await SettingsService.setRuntime(runtime);
-    Hooks.callAll(`${MODULE_ID}.voteUpdated`, session);
-    game.socket.emit(this.SOCKET, { type: "vote-accepted", sessionId: session.id, userId });
+      let selections;
+      try {
+        selections = this.#validateSelections(session, userId, payload.selections ?? {});
+      } catch (_error) {
+        return;
+      }
+      session.ballots ??= {};
+      session.ballots[userId] = selections;
+      runtime.activeVote = session;
+      await SettingsService.setRuntime(runtime);
+      Hooks.callAll(`${MODULE_ID}.voteUpdated`, session);
+      game.socket.emit(this.SOCKET, { type: "vote-accepted", sessionId: session.id, userId });
+    };
+    this.#ballotWriteQueue = this.#ballotWriteQueue.then(process, process);
+    await this.#ballotWriteQueue;
   }
 }

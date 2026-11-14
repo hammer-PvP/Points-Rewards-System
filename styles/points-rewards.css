@@ -446,3 +446,17 @@
 .pr-redeem-summary-row > strong { min-width: 0; color: #f4e3c5; text-align: right; overflow-wrap: anywhere; }
 .pr-redeem-origin { padding-top: 5px; border-top: 1px solid rgba(255,255,255,.07); }
 .pr-redeem-debt-note { color: #ffb4b4; text-align: right; font-size: 10px; }
+
+/* v0.5.0 — private adjustment feedback and poll cancellation controls */
+.pr-actions-row .pr-cancel-vote { border-color: rgba(198,105,94,.55); color: #e8b2aa; }
+.pr-actions-row .pr-cancel-vote:hover { background: rgba(150,65,61,.22); }
+.pr-chat-point-notification .pr-private-points-body { display: grid; gap: 5px; padding: 10px 12px; }
+.pr-chat-point-notification .pr-private-points-label { text-transform: uppercase; letter-spacing: .055em; font-size: 10px; color: #baa98f; }
+.pr-chat-point-notification .pr-private-points-character { font-size: 13px; overflow-wrap: anywhere; }
+.pr-chat-point-notification .pr-private-points-amount { font-size: 23px; font-weight: 700; line-height: 1.35; }
+.pr-chat-point-notification .pr-private-points-amount.positive { color: #a8d7aa; }
+.pr-chat-point-notification .pr-private-points-amount.negative { color: #efaba5; }
+.pr-chat-point-notification .pr-private-points-reason { overflow-wrap: anywhere; }
+.pr-chat-point-notification .pr-private-points-description { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: 12px; }
+.pr-chat-point-notification .pr-private-points-scope { font-size: 11px; color: #c2b5a0; }
+.pr-chat-card.pr-chat-poll-cancelled > header { color: #efaba5; }
