@@ -62,7 +62,6 @@ Hooks.on("renderApplicationV2", (app, element) => {
 Hooks.on("renderActorDirectory", (app, html) => injectActorDirectoryTool(app, html));
 Hooks.on("renderSidebar", (app, html) => injectRedemptionSidebarControl(asRoot(html, app)));
 Hooks.on("renderChatMessageHTML", (message, html) => PlayerRedemptionService.decorateChat(message, html));
-Hooks.on("renderChatMessage", (message, html) => PlayerRedemptionService.decorateChat(message, html));
 
 Hooks.on("renderActorSheet", (app, html) => {
   const root = asRoot(html, app);

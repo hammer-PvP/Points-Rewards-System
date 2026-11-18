@@ -18,6 +18,10 @@
       <section class="pr-player-benefit-preview" aria-live="polite">
         <small>BENEFIT EFFECT</small><h2 data-benefit-name></h2><p data-benefit-description></p>
       </section>
+      <label class="pr-player-private-option">
+        <input type="checkbox" name="hideRedemption" {{#if hideRedemption}}checked{{/if}}>
+        <span><strong>Hide redemption from other players</strong><small>Only you and the GMs will see this redemption in Chat.</small></span>
+      </label>
       <section class="pr-player-balance-summary">
         <div><span>Current Balance</span><strong data-current-balance></strong></div>
         <div><span>Cost</span><strong data-cost></strong></div>

@@ -4,6 +4,12 @@
 
 The module ID remains **`points-and-rewards`**.
 
+## Optional private player redemptions
+
+A Player may enable **Hide redemption from other players** for an individual reward redemption. The checkbox is **OFF by default**. When enabled, the resulting redemption Chat Card is created as a native private whisper visible only to the requesting Player and all GMs (including offline GMs when they return). When disabled, the same card remains public as before. The benefit, point cost, ledger debit, Actor identity and GM-only **Refund** button work the same in either mode. Retrying an unanswered redemption retains the original request ID **and privacy choice**; it cannot publish a pending secret redemption publicly. A refund updates the original card and uses the existing private point-refund notification, without broadcasting the hidden redemption.
+
+The module uses the modern `renderChatMessageHTML` hook for Chat Card controls on both supported Foundry V13 and V14; the deprecated `renderChatMessage` hook is no longer registered.
+
 ## Private points notifications
 
 The **Notify Players of Point Adjustments** option in General Settings is enabled by default. Once a GM commits a Give Points award or Custom negative adjustment, a **private Chat whisper** goes to the linked Primary User and the GMs, showing the character, signed point amount, reason and optional description. A successful GM Refund of a Player Redemption also sends a private points-refunded notice. **Current/remaining point balances are not sent in these whispers.** Account-Wide batch awards notify once per committed account. Poll winner awards already have separate result announcements and do not produce this extra notification. Failed Chat delivery never reverses a successful ledger transaction.

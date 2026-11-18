@@ -49,7 +49,15 @@ export class PointsNotificationService {
       if (this.#pending.has(id)) return false;
       const existing = game.messages?.contents ?? [];
       if (existing.some(message => message.getFlag?.(MODULE_ID, "pointNotification")?.transactionId === id)) return false;
-      const whisper = this.recipientsFor(actor);
+      // Hidden redemption refunds follow the original requesting Player, not
+      // potentially changed Primary User bindings. Ordinary adjustments and
+      // public-redemption refunds keep the established Primary User routing.
+      const whisper = typeof options.whisperToUserId === "string"
+        ? Array.from(new Set([
+            ...game.users.filter(user => user.isGM).map(user => user.id),
+            ...(Array.from(game.users).some(user => user.id === options.whisperToUserId) ? [options.whisperToUserId] : [])
+          ]))
+        : this.recipientsFor(actor);
       if (!whisper.length) return false;
       this.#pending.add(id);
       pendingId = id;

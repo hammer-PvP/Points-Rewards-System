@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.2 — Hidden Player Redemption & Chat Hook Compatibility
+
+### Added
+
+- Optional **Hide redemption from other players** checkbox in the existing Player Redeem Benefit window, unchecked by default. Enabled redemptions are created directly as native Chat whispers addressed to the requesting Player and every GM; unchecked redemptions remain public.
+- Private/public selection is stored on the specific player request and audit flag. Retries retain the original request ID and original privacy selection, preventing accidental disclosure or duplicated ledger charges.
+- The GM-only Refund control, ledger reversal and existing private points-refunded notification also work on secret Chat Cards without broadcasting the redemption.
+
+### Fixed
+
+- Removed the deprecated `renderChatMessage` registration; `PlayerRedemptionService.decorateChat` now runs exclusively on the Foundry V13/V14 `renderChatMessageHTML` hook using its `HTMLElement` argument. No duplicated legacy hook registrations.
+
+### Unchanged
+
+- Account storage, Primary User/Owner authorization, Point Methods, balance/debt policies, ledger, idempotency, GM Manager redemptions, voting, notifications, migration and configuration export/import remain unchanged. No new global setting is needed.
+
 ## 0.5.1 — Player Redemption Reliability Hotfix
 
 ### Fixed

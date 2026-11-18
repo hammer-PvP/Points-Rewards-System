@@ -34,6 +34,7 @@ export class PlayerRedemptionApp extends HandlebarsApplicationMixin(ApplicationV
     super(options);
     this.actorId = actorId;
     this.benefitId = "";
+    this.hideRedemption = false;
     this._busy = false;
   }
 
@@ -46,7 +47,8 @@ export class PlayerRedemptionApp extends HandlebarsApplicationMixin(ApplicationV
       actors: actors.map(actor => ({ id: actor.id, name: actor.name, balance: AccountService.balance(actor), selected: actor.id === this.actorId })),
       hasActors: Boolean(actors.length), hasMultipleActors: actors.length > 1,
       benefits: benefits.map(benefit => ({ ...benefit, selected: benefit.id === this.benefitId })),
-      hasBenefits: Boolean(benefits.length), allowNegativeBalance: SettingsService.get().allowNegativeBalance
+      hasBenefits: Boolean(benefits.length), allowNegativeBalance: SettingsService.get().allowNegativeBalance,
+      hideRedemption: this.hideRedemption === true
     };
   }
 
@@ -60,6 +62,9 @@ export class PlayerRedemptionApp extends HandlebarsApplicationMixin(ApplicationV
     root.querySelector('[name="benefit"]')?.addEventListener("change", event => {
       this.benefitId = event.currentTarget.value;
       this.#updatePreview();
+    });
+    root.querySelector('[name="hideRedemption"]')?.addEventListener("change", event => {
+      this.hideRedemption = event.currentTarget.checked === true;
     });
     root.querySelector('[data-action="cancel"]')?.addEventListener("click", () => void this.close());
     root.querySelector('[data-action="confirm-redeem"]')?.addEventListener("click", event => void this.#redeem(event));
@@ -107,16 +112,17 @@ export class PlayerRedemptionApp extends HandlebarsApplicationMixin(ApplicationV
     const balance = AccountService.balance(actor);
     const after = balance - benefit.cost;
     if (after < 0 && !SettingsService.get().allowNegativeBalance) return ui.notifications.warn("Insufficient points.");
+    const hiddenFromPlayers = this.hideRedemption === true;
     const accepted = await confirmDialog({
       title: "Confirm Benefit Redemption",
-      content: `<p><strong>${htmlEscape(actor.name)}</strong> will redeem <strong>${htmlEscape(benefit.name)}</strong> for ${benefit.cost} Points.</p><p>${htmlEscape(benefit.description)}</p><p>Balance: ${balance} → <strong>${after}</strong></p>${after < 0 ? `<p class="pr-debt-warning">This creates a debt of ${Math.abs(after)} Points.</p>` : ""}`,
+      content: `<p><strong>${htmlEscape(actor.name)}</strong> will redeem <strong>${htmlEscape(benefit.name)}</strong> for ${benefit.cost} Points.</p><p>${htmlEscape(benefit.description)}</p><p>Balance: ${balance} → <strong>${after}</strong></p>${after < 0 ? `<p class="pr-debt-warning">This creates a debt of ${Math.abs(after)} Points.</p>` : ""}${hiddenFromPlayers ? `<p><i class="fa-solid fa-lock" aria-hidden="true"></i> This redemption will be visible only to you and the GMs in Chat.</p>` : ""}`,
       yes: "Confirm Redemption", danger: after < 0
     });
     if (!accepted) return;
     this._busy = true;
     this.#updatePreview();
     try {
-      const result = await PlayerRedemptionService.request(actor.id, benefit.id);
+      const result = await PlayerRedemptionService.request(actor.id, benefit.id, { hiddenFromPlayers });
       // Never display an undefined notification even if an older GM client or
       // unexpected response omits the message; the ledger is not changed here.
       const message = typeof result?.message === "string" && result.message.trim()

@@ -39,7 +39,7 @@ export class PlayerRedemptionService {
     return Array.from(game.users).some(user => user.isGM && user.active);
   }
 
-  static async request(actorId, benefitId) {
+  static async request(actorId, benefitId, { hiddenFromPlayers = false } = {}) {
     if (game.user?.isGM) throw new Error("Use the GM Manager for GM-controlled redemptions.");
     if (!this.availableGM()) throw new Error("A GM must be online to authorize a point redemption.");
     const actor = game.actors.get(actorId);
@@ -54,13 +54,15 @@ export class PlayerRedemptionService {
     if (hasUnansweredRequest && (pending.actorId !== actor.id || pending.benefitId !== benefit.id)) {
       throw new Error("Your previous redemption is still being processed. Ask the GM to check it before requesting a different benefit.");
     }
-    // A retry of an unanswered request MUST keep its original ID. A new
-    // attempt marker triggers an updateUser event without creating a second
-    // ledger debit if the GM already processed the original request.
+    // A retry of an unanswered request MUST keep its original ID and original
+    // privacy choice. Changing the checkbox cannot turn a pending private
+    // redemption into a public one (or vice versa). A new attempt marker
+    // triggers updateUser without creating another ledger debit.
     // No wall-clock timestamp is used to authorize or expire redemptions.
     const request = hasUnansweredRequest
       ? { ...pending, attempt: randomId("retry") }
-      : { id: randomId("player-redeem"), actorId: actor.id, benefitId: benefit.id, attempt: randomId("submit") };
+      : { id: randomId("player-redeem"), actorId: actor.id, benefitId: benefit.id,
+          hiddenFromPlayers: hiddenFromPlayers === true, attempt: randomId("submit") };
     if (this.#inflight.has(request.id)) throw new Error("Your redemption is already being processed.");
     let timer;
     const outcome = new Promise(resolve => {
@@ -155,15 +157,23 @@ export class PlayerRedemptionService {
       const alreadyPosted = Array.from(game.messages).some(message => message.getFlag(MODULE_ID, "playerRedemption")?.transactionId === entry.id);
       if (!alreadyPosted) {
         try {
+          // Only this one player's explicit choice controls this particular
+          // Chat Card. Send a native whisper directly, never post publicly and
+          // hide it afterwards. Include every GM explicitly (active or not).
+          const whisper = request.hiddenFromPlayers === true
+            ? Array.from(new Set([user.id, ...Array.from(game.users).filter(gm => gm.isGM).map(gm => gm.id)]))
+            : [];
           await ChatMessage.create({
             content: this.chatCardContent({ actor, benefit, cost, remaining, redeemedBy: "Player", requestedByName: user.name }),
+            ...(whisper.length ? { whisper } : {}),
             // The GM is still the author/committer. Speaker identifies the character
             // who actually redeemed, rather than the GM relaying the request.
             speaker: ChatMessage.getSpeaker({ actor, alias: actor.name }),
             style: CONST.CHAT_MESSAGE_STYLES.IC,
             flags: { [MODULE_ID]: { playerRedemption: {
               transactionId: entry.id, actorId: actor.id, accountType: entry.accountType,
-              accountId: entry.accountId, cost, requestId: request.id, requestedByUserId: user.id, refunded: false
+              accountId: entry.accountId, cost, requestId: request.id, requestedByUserId: user.id,
+              hiddenFromPlayers: request.hiddenFromPlayers === true, refunded: false
             } } }
           });
         } catch (chatError) {
@@ -181,8 +191,8 @@ export class PlayerRedemptionService {
     await user.setFlag(MODULE_ID, this.RESULT_FLAG, result);
   }
 
-  /** Identical public card for player and GM redemption. Never include private
-   * account data unless the GM explicitly enables balance disclosure. */
+  /** Same card for player and GM redemption, either public or whispered.
+   * Never include remaining balance unless the GM explicitly enables it. */
   static chatCardContent({ actor, benefit, cost, remaining, redeemedBy, requestedByName }) {
     const config = SettingsService.get();
     const showBalance = config.showRedemptionBalanceInChat === true;
@@ -263,7 +273,10 @@ export class PlayerRedemptionService {
       // Reversal is already committed at this point; private Chat feedback is
       // best-effort and does not affect the refund or its idempotent source ID.
       await PointsNotificationService.notifyCommit(actor, reversal, {
-        kind: "refund", title: entry.title, description: entry.description
+        kind: "refund", title: entry.title, description: entry.description,
+        // A hidden redemption must not be revealed to a different Player if
+        // Primary User ownership has changed since the original request.
+        ...(flag.hiddenFromPlayers === true ? { whisperToUserId: String(flag.requestedByUserId ?? "") } : {})
       });
       await message.setFlag(MODULE_ID, "playerRedemption", { ...flag, refunded: true });
       ui.notifications.info(`${flag.cost} points refunded to ${actor.name}.`);

@@ -419,6 +419,12 @@
 .pr-player-benefit-preview small { color: var(--pr-muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
 .pr-player-benefit-preview h2 { margin: 8px 0; font-size: 18px; color: var(--pr-gold); }
 .pr-player-benefit-preview p { margin: 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+/* v0.5.2: private redemption selection, using native form controls. */
+.pr-player-private-option { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--pr-border); border-radius: 5px; background: rgba(255,255,255,.025); cursor: pointer; }
+.pr-player-private-option input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; margin: 1px 0 0; }
+.pr-player-private-option span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pr-player-private-option strong { font-size: 12px; font-weight: 700; color: #f2f2f2; }
+.pr-player-private-option small { font-size: 11px; line-height: 1.4; color: var(--pr-muted); }
 .pr-player-balance-summary { display: grid; gap: 7px; padding: 10px 12px; border-radius: 5px; background: rgba(255,255,255,.025); }
 .pr-player-balance-summary > div { display: flex; justify-content: space-between; gap: 12px; }
 .pr-player-balance-summary > div span { color: var(--pr-muted); }
