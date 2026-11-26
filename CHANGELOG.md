@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0 — Built-in Presets & Player Journals
+
+### Added
+
+- **Built-in Presets** library with four manually importable data-only choices: Hammer's Profile and Optional 1, each in PT-BR and EN. The module remains unconfigured by these presets until a GM explicitly imports one; the underlying point-storage architecture is unchanged.
+- Full preview of all voting questions, award reasons, benefits, descriptions and costs before import. PT-BR variants identify their language. Presets are loaded on demand from packaged JSON assets and validated with the existing ecosystem schema v2 importer.
+- Editable **Imported Preset Groups** with name-based reimport protection: replacing the same full name touches only member records tracked for that group, while other groups and manual configuration remain untouched. Rename creates a distinct target, so importing the original name again preserves the renamed copy. Confirmation precedes replacement; Save Settings commits staged changes.
+- Optional native **Player Journals**, checked by default, with folder trees `Pontos/Ganhando,Gastando` for PT-BR and `Points/Earning,Spending` for EN. Guide contents reflect each preset, including redemption steps, private Chat option, and catalog. All players receive Observer/read-only access; GMs may edit. Reimports reuse existing folders/guides and preserve edited Journal text unless an explicit update checkbox is selected.
+
+### Changed
+
+- Moved global **Export All / Import All** to the internal Settings header and added **Presets** beside them, removing the large Portable Ecosystem Configuration card from General. Existing individual section Import/Export actions remain available.
+- Polished PT-BR/EN preset grammar while preserving points, costs, restrictions and effect semantics. **Encontro Fortuito / Fortuitous Encounter** uses the approved short description in Redemption and the full explanation in the Journal.
+
+### Unchanged
+
+- World State, accounts, Primary User, ledgers, point grants/adjustments, redemptions/Refund, Polls, voting tie rules, notification privacy and generic system compatibility. Built-in sets contain no Actors, Users, point balances or transactional data.
+
 ## 0.5.2 — Hidden Player Redemption & Chat Hook Compatibility
 
 ### Added

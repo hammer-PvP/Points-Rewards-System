@@ -97,6 +97,16 @@ export class SettingsService {
     // Existing Worlds and fresh installs both keep remaining balances private by default.
     merged.showRedemptionBalanceInChat = merged.showRedemptionBalanceInChat === true;
     merged.notifyPointAdjustments = merged.notifyPointAdjustments !== false;
+    // Built-in set membership is World configuration metadata, never point-account state.
+    // It allows name-based reimport without affecting another set or manually added entries.
+    merged.importedPresetGroups = (Array.isArray(raw.importedPresetGroups) ? raw.importedPresetGroups : [])
+      .filter(group => group && typeof group === "object" && group.id && String(group.name ?? "").trim())
+      .map(group => ({
+        id: String(group.id), name: String(group.name).trim().slice(0, 100),
+        votingIds: (Array.isArray(group.votingIds) ? group.votingIds : []).map(String),
+        reasonIds: (Array.isArray(group.reasonIds) ? group.reasonIds : []).map(String),
+        benefitIds: (Array.isArray(group.benefitIds) ? group.benefitIds : []).map(String)
+      }));
 
     const rawProfiles = Array.isArray(raw.votingProfiles) ? raw.votingProfiles : null;
     const legacyCategories = Array.isArray(raw.categories) ? raw.categories : [];

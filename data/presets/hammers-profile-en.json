@@ -1,0 +1,114 @@
+{
+  "module": "points-and-rewards",
+  "moduleVersion": "0.6.0",
+  "schemaVersion": 2,
+  "exportType": "all",
+  "exportedAt": "2026-11-26T02:26:59Z",
+  "data": {
+    "votingProfiles": [
+      {
+        "name": "End of Session!",
+        "allowSelfVoting": false,
+        "ballotVisibility": "secret",
+        "questions": [
+          {
+            "title": "Standout Player",
+            "shortLabel": "THE ONE!",
+            "description": "Who shone this session? Vote for the player who stood out in combat, roleplay, creativity, or a memorable moment.",
+            "voteType": "actor",
+            "points": 8,
+            "resolveTiesByGM": true,
+            "options": []
+          },
+          {
+            "title": "For the Team!",
+            "shortLabel": "Team Player",
+            "description": "Who did something for the good of the group, even when it was not the best choice for their own character?",
+            "voteType": "actor",
+            "points": 5,
+            "resolveTiesByGM": true,
+            "options": []
+          },
+          {
+            "title": "Unexpected!",
+            "shortLabel": "OMG! LOL",
+            "description": "Did it go wrong? Did it go right? Either way, it was hilarious! Vote for the star of the session’s funniest disaster.",
+            "voteType": "actor",
+            "points": 2,
+            "resolveTiesByGM": true,
+            "options": []
+          }
+        ]
+      }
+    ],
+    "givePointReasons": [
+      {
+        "title": "On Time",
+        "description": "Arrived on time and ready to play. The GM is proud!",
+        "points": 5
+      },
+      {
+        "title": "Great Participation",
+        "description": "Participated, interacted, and helped make the session happen. Directly or indirectly, the GM felt you stood out today.",
+        "points": 3
+      },
+      {
+        "title": "Session Recap!",
+        "description": "Helped everyone remember the previous session, gave a recap, or actively joined the discussion to get the group back on track.",
+        "points": 2
+      }
+    ],
+    "redeemBenefits": [
+      {
+        "name": "Twist of Fate",
+        "description": "Immediately after a d20 rolls a natural 1 or natural 20, reverse the result: a 1 becomes a 20 and a 20 becomes a 1. You may use this on one of your own rolls or on an enemy’s attack roll against a party member.",
+        "cost": 100
+      },
+      {
+        "name": "Heroic Moment",
+        "description": "After failing a saving throw, turn the failure into a success. Cannot be used on death saving throws.",
+        "cost": 45
+      },
+      {
+        "name": "RE-ROLL!",
+        "description": "After seeing the result of a roll, roll the same die again. You must use the new result, even if it is worse.",
+        "cost": 25
+      },
+      {
+        "name": "Not This Time!",
+        "description": "After a creature hits you with an attack, but before damage is rolled, force it to reroll its attack roll. The new result must be used.",
+        "cost": 25
+      },
+      {
+        "name": "ADVANTAGE!",
+        "description": "I say two dice are better than one! Make your next d20 roll with advantage. You must declare this before rolling.",
+        "cost": 22
+      },
+      {
+        "name": "PLUS FIVE!!",
+        "description": "Add +5 to your next d20 roll. You must declare this before rolling.",
+        "cost": 18
+      },
+      {
+        "name": "Not Yet!",
+        "description": "When making a death saving throw, roll with advantage. You must declare this before rolling.",
+        "cost": 15
+      },
+      {
+        "name": "Heroic Strike",
+        "description": "After hitting with a weapon attack, but before rolling damage, add one weapon damage die to the roll. This additional die is not multiplied on a critical hit.",
+        "cost": 12
+      },
+      {
+        "name": "I Can Do That!",
+        "description": "Before making an ability check in which you lack proficiency, treat yourself as proficient for that one roll and add your proficiency bonus.",
+        "cost": 10
+      },
+      {
+        "name": "Feel Blessed",
+        "description": "Some force decided to lend a hand. Add 1d4 to your next d20 roll. You must declare this before rolling.",
+        "cost": 8
+      }
+    ]
+  }
+}

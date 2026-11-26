@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "presets": [
+    {
+      "id": "hammers-profile-pt-BR",
+      "name": "Hammer's Profile — PT-BR",
+      "displayName": "Hammer's Profile",
+      "language": "pt-BR",
+      "dataFile": "hammers-profile-pt-BR.json",
+      "journals": {
+        "earning": "hammers-profile-pt-BR-earning.html",
+        "spending": "hammers-profile-pt-BR-spending.html"
+      },
+      "counts": {
+        "voting": 1,
+        "reasons": 3,
+        "benefits": 10
+      }
+    },
+    {
+      "id": "hammers-profile-en",
+      "name": "Hammer's Profile — EN",
+      "displayName": "Hammer's Profile",
+      "language": "en",
+      "dataFile": "hammers-profile-en.json",
+      "journals": {
+        "earning": "hammers-profile-en-earning.html",
+        "spending": "hammers-profile-en-spending.html"
+      },
+      "counts": {
+        "voting": 1,
+        "reasons": 3,
+        "benefits": 10
+      }
+    },
+    {
+      "id": "optional-1-pt-BR",
+      "name": "Optional 1 — PT-BR",
+      "displayName": "Optional 1",
+      "language": "pt-BR",
+      "dataFile": "optional-1-pt-BR.json",
+      "journals": {
+        "earning": "optional-1-pt-BR-earning.html",
+        "spending": "optional-1-pt-BR-spending.html"
+      },
+      "counts": {
+        "voting": 1,
+        "reasons": 6,
+        "benefits": 23
+      }
+    },
+    {
+      "id": "optional-1-en",
+      "name": "Optional 1 — EN",
+      "displayName": "Optional 1",
+      "language": "en",
+      "dataFile": "optional-1-en.json",
+      "journals": {
+        "earning": "optional-1-en-earning.html",
+        "spending": "optional-1-en-spending.html"
+      },
+      "counts": {
+        "voting": 1,
+        "reasons": 6,
+        "benefits": 23
+      }
+    }
+  ]
+}

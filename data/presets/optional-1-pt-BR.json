@@ -1,0 +1,176 @@
+{
+  "module": "points-and-rewards",
+  "moduleVersion": "0.6.0",
+  "schemaVersion": 2,
+  "exportType": "all",
+  "exportedAt": "2026-11-26T02:26:59Z",
+  "data": {
+    "votingProfiles": [
+      {
+        "name": "MVP da Sessão",
+        "allowSelfVoting": false,
+        "ballotVisibility": "secret",
+        "questions": [
+          {
+            "title": "MVP (Most Valuable Player)",
+            "shortLabel": "MVP",
+            "description": "Ao final da sessão, vote no personagem que teve as participações mais críticas e relevantes. Apenas um vencedor recebe 10 pontos; o GM desempata, se necessário.",
+            "voteType": "actor",
+            "points": 10,
+            "resolveTiesByGM": true,
+            "options": []
+          }
+        ]
+      }
+    ],
+    "givePointReasons": [
+      {
+        "title": "Boas Ideias",
+        "description": "Concede pontos por boas ideias durante a partida.",
+        "points": 2
+      },
+      {
+        "title": "Participação Importante",
+        "description": "Concede pontos por participações importantes durante a partida, especialmente para o desenvolvimento da trama.",
+        "points": 4
+      },
+      {
+        "title": "Presença na Sessão",
+        "description": "Concede pontos por presença na sessão.",
+        "points": 2
+      },
+      {
+        "title": "Pontualidade",
+        "description": "Concede pontos por chegar na hora marcada.",
+        "points": 4
+      },
+      {
+        "title": "Interpretação Notável",
+        "description": "Concede 1 ponto por interpretação notável do personagem, com limite de 5 pontos por sessão. O controle desse limite é realizado pelo GM.",
+        "points": 1
+      },
+      {
+        "title": "Feitos e Conquistas da Sessão Anterior",
+        "description": "Conquistas de fatos ocorridos na última sessão, sugeridas pelos jogadores e sujeitas à aprovação do GM.",
+        "points": 2
+      }
+    ],
+    "redeemBenefits": [
+      {
+        "name": "Vantagem Antes da Rolagem",
+        "description": "Ganhe vantagem em uma rolagem de d20. Declare o uso antes de rolar o dado.",
+        "cost": 8
+      },
+      {
+        "name": "Novo d20 Antes do Resultado",
+        "description": "Role um d20 adicional depois da rolagem inicial, mas antes de saber se houve sucesso ou falha.",
+        "cost": 12
+      },
+      {
+        "name": "+5 Após Rolar, Antes do Resultado",
+        "description": "Adicione +5 a uma rolagem de d20 depois de ver o dado, mas antes de saber se houve sucesso ou falha.",
+        "cost": 16
+      },
+      {
+        "name": "+10 na Iniciativa",
+        "description": "Adicione +10 à iniciativa de um combate. Só pode ser usado imediatamente após rolar a iniciativa.",
+        "cost": 18
+      },
+      {
+        "name": "Bênção por 1 Dia",
+        "description": "Receba os efeitos de Bênção por 1 dia.",
+        "cost": 20
+      },
+      {
+        "name": "+5 Após o Resultado",
+        "description": "Adicione +5 a uma rolagem de d20 depois de ver o dado e de conhecer o resultado.",
+        "cost": 25
+      },
+      {
+        "name": "Descanso com Dados de Vida Máximos",
+        "description": "Maximize o resultado de todos os Dados de Vida rolados durante um descanso.",
+        "cost": 30
+      },
+      {
+        "name": "Nova Tiragem de Cartas Nobre e Comum",
+        "description": "Retire novamente as duas cartas dos baralhos Nobre e Comum. Só pode ser usado no início da sessão.",
+        "cost": 30
+      },
+      {
+        "name": "Recuperar Exaustão",
+        "description": "Recupere um nível de exaustão.",
+        "cost": 35
+      },
+      {
+        "name": "Negar Carta de Azar",
+        "description": "Negue o efeito de uma carta de azar.",
+        "cost": 40
+      },
+      {
+        "name": "Reduzir Dano pela Metade",
+        "description": "Reduza uma instância de dano pela metade.",
+        "cost": 40
+      },
+      {
+        "name": "Bênção do Grupo por 1 Dia",
+        "description": "Conceda os efeitos de Bênção a todo o grupo por 1 dia.",
+        "cost": 40
+      },
+      {
+        "name": "Bênção Pessoal por 3 Dias",
+        "description": "Receba os efeitos de Bênção por 3 dias.",
+        "cost": 45
+      },
+      {
+        "name": "Escolher 20 Natural",
+        "description": "Escolha um resultado de 20 natural no dado.",
+        "cost": 80
+      },
+      {
+        "name": "Sucesso em Salvaguarda",
+        "description": "Escolha obter sucesso em um teste de resistência.",
+        "cost": 80
+      },
+      {
+        "name": "Bênção do Grupo por 3 Dias",
+        "description": "Conceda os efeitos de Bênção a todo o grupo por 3 dias.",
+        "cost": 80
+      },
+      {
+        "name": "Vantagem no Dado de Vida ao Subir de Nível",
+        "description": "Role o Dado de Vida com vantagem no próximo aumento de nível.",
+        "cost": 100
+      },
+      {
+        "name": "Mudança Significativa na Ficha",
+        "description": "Faça uma mudança significativa na ficha durante um aumento de nível ou em decorrência de uma tragédia marcante vivida pelo personagem. É necessária uma justificativa narrativa.",
+        "cost": 150
+      },
+      {
+        "name": "Encontro Fortuito",
+        "description": "Nos próximos 10 dias de jogo, o personagem recebe um encontro favorável definido pelo GM: pode encontrar um item necessário, escapar de um perigo letal ou conhecer um NPC importante. É um impulso à sua trama pessoal, exclusivo de quem resgatou.",
+        "cost": 200
+      },
+      {
+        "name": "Proficiência em Ferramenta",
+        "description": "Adquira proficiência em uma ferramenta à sua escolha. Uma vez por personagem.",
+        "cost": 200
+      },
+      {
+        "name": "Maximizar um Dado de Vida Anterior",
+        "description": "Maximize um de seus Dados de Vida de níveis anteriores, à sua escolha, aumentando permanentemente seus pontos de vida máximos.",
+        "cost": 300
+      },
+      {
+        "name": "Aumentar Atributo em +1",
+        "description": "Aumente em +1 um dos atributos do personagem. Uma vez por personagem.",
+        "cost": 400
+      },
+      {
+        "name": "Maximizar Todos os Dados de Vida Anteriores",
+        "description": "Maximize todos os Dados de Vida de níveis anteriores, aumentando permanentemente seus pontos de vida máximos.",
+        "cost": 500
+      }
+    ]
+  }
+}

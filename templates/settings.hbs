@@ -1,6 +1,11 @@
 <div class="pr-shell pr-settings-shell">
   <header class="pr-app-header">
     <div class="pr-brand"><i class="fa-solid fa-sliders"></i><div><h1>Polls, Points & Rewards Settings</h1><p>Configure reusable polls, point rules, and rewards for your table.</p></div></div>
+    <div class="pr-header-preset-actions">
+      <button type="button" data-action="open-presets" data-tooltip="Browse built-in preset configurations"><i class="fa-solid fa-book-open"></i> Presets</button>
+      <button type="button" data-export-config="all" data-tooltip="Export the complete configuration JSON"><i class="fa-solid fa-file-export"></i> Export All</button>
+      <button type="button" data-import-config="all" data-tooltip="Import a complete configuration JSON"><i class="fa-solid fa-file-import"></i> Import All</button>
+    </div>
   </header>
 
   <nav class="pr-tabs pr-settings-tabs">
@@ -41,13 +46,6 @@
         <label><input type="checkbox" name="notifyPointAdjustments" {{#if config.notifyPointAdjustments}}checked{{/if}}><span><strong>Notify Players of Point Adjustments</strong><small>Default ON. Send a private Chat message to the Primary User and GMs for GM point awards, Custom deductions, and redemption refunds. Poll awards already have their own announcement.</small></span></label>
       </div>
 
-      <div class="pr-settings-card pr-portable-config">
-        <div><h3>Portable Ecosystem Configuration</h3><p>Export or import Voting Profiles, Give Point Reasons, and Redeem Benefits together. Player identities, Primary Users, balances, ledgers, folders, and World data are never included.</p></div>
-        <div class="pr-config-transfer-actions">
-          <button type="button" data-export-config="all"><i class="fa-solid fa-file-export"></i> Export All</button>
-          <button type="button" data-import-config="all"><i class="fa-solid fa-file-import"></i> Import All</button>
-        </div>
-      </div>
     </section>
 
     <section data-settings-panel="identity" hidden>
@@ -166,6 +164,29 @@
       <p class="pr-setting-note"><i class="fa-solid fa-circle-info"></i> Benefit Name, Description, and Cost are mandatory. With no saved benefits, an editable symbolic Default benefit is shown.</p>
     </section>
   </main>
+
+  <section class="pr-preset-dialog" data-preset-dialog hidden role="dialog" aria-modal="true" aria-label="Built-in Presets">
+    <div class="pr-preset-modal-panel">
+      <header class="pr-preset-modal-header"><div><h2><i class="fa-solid fa-book-open"></i> Built-in Presets</h2><p>Review, import and customize ready-made configurations. Nothing is added automatically.</p></div><button type="button" data-action="close-presets" aria-label="Close presets"><i class="fa-solid fa-xmark"></i></button></header>
+      <div class="pr-preset-modal-body">
+        <label class="pr-preset-selector">Select Preset<select name="builtInPresetSelect"></select></label>
+        <nav class="pr-preset-preview-tabs" aria-label="Preset preview">
+          <button type="button" data-preset-preview-tab="overview" class="active">Overview</button>
+          <button type="button" data-preset-preview-tab="voting">Voting</button>
+          <button type="button" data-preset-preview-tab="reasons">Give Reasons</button>
+          <button type="button" data-preset-preview-tab="benefits">Benefits</button>
+          <button type="button" data-preset-preview-tab="journals">Journals</button>
+        </nav>
+        <div class="pr-preset-preview" data-preset-preview>Choose a preset to preview its contents.</div>
+        <div class="pr-preset-import-options">
+          <label><input type="checkbox" name="createPresetJournals" checked><span><strong>Create Player Journals</strong><small>Two read-only guides (Observer) for every player, in language-specific Journal folders.</small></span></label>
+          <label><input type="checkbox" name="updatePresetJournals"><span><strong>Update existing Player Journals</strong><small>Off by default. Enabling this overwrites the text of existing linked guides, including GM edits.</small></span></label>
+        </div>
+        <section class="pr-preset-imported-section"><h3>Imported Preset Groups</h3><p>Rename imported sets here. They remain editable in the normal Settings tabs. Reimport replaces only a group with the same name.</p><div data-imported-preset-groups></div></section>
+      </div>
+      <footer class="pr-preset-modal-footer"><span>Import stages changes; click <strong>Save Settings</strong> afterward.</span><button type="button" data-action="close-presets">Cancel</button><button type="button" class="pr-primary" data-action="import-built-in"><i class="fa-solid fa-file-import"></i> Import Selected Preset</button></footer>
+    </div>
+  </section>
 
   <footer class="pr-footer"><button type="button" data-action="cancel"><i class="fa-solid fa-xmark"></i> Cancel</button><button type="button" class="pr-primary" data-action="save"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button></footer>
 </div>

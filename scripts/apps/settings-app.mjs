@@ -11,6 +11,8 @@ import {
 import { AccountService } from "../services/account-service.mjs";
 import { SettingsService } from "../services/settings-service.mjs";
 import { ECOSYSTEM_EXPORT_TYPES, EcosystemTransferService } from "../services/ecosystem-transfer-service.mjs";
+import { BuiltInPresetsService } from "../services/built-in-presets-service.mjs";
+import { PresetJournalService } from "../services/preset-journal-service.mjs";
 import { actorFolderActors, chooseJsonFile, confirmDialog, downloadJsonFile, htmlEscape, importModeDialog, randomId } from "../utils.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -22,6 +24,11 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
     this.selectedProfileId = "";
     this._settingsScrollTop = 0;
     this._busy = false;
+    this._presetGroups = null;
+    this._presetCatalog = null;
+    this._selectedBuiltIn = null;
+    this._presetPreviewTab = "overview";
+    this._pendingJournalJobs = new Map();
   }
 
   static DEFAULT_OPTIONS = {
@@ -38,6 +45,7 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
 
   async _prepareContext() {
     const config = SettingsService.get();
+    if (!this._presetGroups) this._presetGroups = BuiltInPresetsService.groups(config);
     if (game.user?.isGM) await AccountService.ensureConfiguredPrimaryUsers(config);
     const actorFolders = game.folders
       .filter(folder => folder.type === "Actor")
@@ -98,6 +106,15 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
       this.#setTab(button.dataset.settingsTab);
     }));
     root.querySelector('[data-action="save"]')?.addEventListener("click", event => void this.#save(event));
+    root.querySelector('[data-action="open-presets"]')?.addEventListener("click", event => { event.preventDefault(); void this.#openPresets(); });
+    root.querySelectorAll('[data-action="close-presets"]').forEach(button => button.addEventListener("click", event => { event.preventDefault(); this.#closePresets(); }));
+    root.querySelector('[name="builtInPresetSelect"]')?.addEventListener("change", event => { void this.#chooseBuiltIn(event.currentTarget.value); });
+    root.querySelector('[data-action="import-built-in"]')?.addEventListener("click", event => { event.preventDefault(); void this.#importBuiltIn(); });
+    root.querySelectorAll('[data-preset-preview-tab]').forEach(button => button.addEventListener("click", event => { event.preventDefault(); this.#setPresetPreviewTab(button.dataset.presetPreviewTab); }));
+    root.querySelector('[data-imported-preset-groups]')?.addEventListener("click", event => {
+      const button = event.target.closest('[data-action="rename-imported-preset"]');
+      if (button) { event.preventDefault(); this.#renameImportedGroup(button.dataset.groupId); }
+    });
     root.querySelector('[data-action="cancel"]')?.addEventListener("click", event => { event.preventDefault(); this.close(); });
 
     root.querySelector('[name="votingProfileSelect"]')?.addEventListener("change", event => this.#setVotingProfile(event.currentTarget.value));
@@ -138,6 +155,136 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
     this.#setVotingProfile(this.selectedProfileId, { focus: false });
     this.#renumberVotingRows();
     root.querySelectorAll('[data-config-row="question"]').forEach(row => this.#syncQuestionType(row, { initial: true }));
+  }
+
+  async #openPresets() {
+    if (this._busy) return;
+    const modal = this.element.querySelector('[data-preset-dialog]');
+    if (!modal) return;
+    modal.hidden = false;
+    this.#renderImportedGroups();
+    try {
+      if (!this._presetCatalog) this._presetCatalog = await BuiltInPresetsService.catalog();
+      const select = modal.querySelector('[name="builtInPresetSelect"]');
+      select.innerHTML = this._presetCatalog.map(item => `<option value="${htmlEscape(item.id)}">${htmlEscape(item.name)}</option>`).join("");
+      await this.#chooseBuiltIn(select.value);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Built-in presets could not be loaded`, error);
+      ui.notifications.error(error.message || "Could not load built-in presets.");
+    }
+  }
+
+  #closePresets() {
+    const modal = this.element.querySelector('[data-preset-dialog]');
+    if (modal) modal.hidden = true;
+  }
+
+  async #chooseBuiltIn(presetId) {
+    const host = this.element.querySelector('[data-preset-preview]');
+    if (!host) return;
+    host.textContent = "Loading preset preview…";
+    this._selectedBuiltIn = null;
+    const importButton = this.element.querySelector('[data-action="import-built-in"]');
+    if (importButton) importButton.disabled = true;
+    try {
+      const selected = await BuiltInPresetsService.get(presetId, this._presetCatalog);
+      // Ignore a slower, older selection arriving after the GM selected another preset.
+      if (this.element.querySelector('[name="builtInPresetSelect"]')?.value !== presetId) return;
+      this._selectedBuiltIn = selected;
+      if (importButton) importButton.disabled = false;
+      this.#renderBuiltInPreview();
+    } catch (error) {
+      this._selectedBuiltIn = null;
+      host.textContent = error.message || "Could not open preset.";
+    }
+  }
+
+  #setPresetPreviewTab(tab) {
+    this._presetPreviewTab = ["overview", "voting", "reasons", "benefits", "journals"].includes(tab) ? tab : "overview";
+    for (const button of this.element.querySelectorAll('[data-preset-preview-tab]')) button.classList.toggle("active", button.dataset.presetPreviewTab === this._presetPreviewTab);
+    this.#renderBuiltInPreview();
+  }
+
+  #renderBuiltInPreview() {
+    const host = this.element.querySelector('[data-preset-preview]');
+    const selected = this._selectedBuiltIn;
+    if (!host || !selected) return;
+    const { entry, data } = selected;
+    const escaped = htmlEscape;
+    const sameName = this._presetGroups.some(group => group.name.trim().toLowerCase() === entry.name.trim().toLowerCase());
+    const header = `<div class="pr-preset-facts"><strong>${escaped(entry.name)}</strong><span>${entry.language === "pt-BR" ? "Brazilian Portuguese (PT-BR) — Text is provided in PT-BR." : "English (EN)"}</span><small>${data.votingProfiles.length} Voting · ${data.givePointReasons.length} Reasons · ${data.redeemBenefits.length} Benefits · 2 optional Journals</small>${sameName ? '<small class="pr-preset-warning">Importing will replace only the imported set with this name. Existing edits in that set will be lost after confirmation.</small>' : ""}</div>`;
+    const list = (rows, titleOf, detailsOf) => `<ul class="pr-preset-preview-list">${rows.map(row => `<li><strong>${escaped(titleOf(row))}</strong><span>${escaped(detailsOf(row))}</span></li>`).join("")}</ul>`;
+    let content;
+    switch (this._presetPreviewTab) {
+      case "voting":
+        content = data.votingProfiles.map(p => `<h4>${escaped(p.name)} · ${p.ballotVisibility === "public" ? "Public" : "Secret"} ballots</h4>${list(p.questions, q => `${q.title} (${q.points} points)`, q => `${q.description}${q.resolveTiesByGM ? " · GM resolves ties" : ""}${q.options.length ? ` · Options: ${q.options.map(o => o.label).join(", ")}` : ""}`)}`).join(""); break;
+      case "reasons": content = list(data.givePointReasons, r => `${r.title} (+${r.points})`, r => r.description); break;
+      case "benefits": content = list(data.redeemBenefits, r => `${r.name} (${r.cost} points)`, r => r.description); break;
+      case "journals": content = `<p>The optional player guides are created in <strong>${entry.language === "pt-BR" ? "Pontos / Ganhando, Gastando" : "Points / Earning, Spending"}</strong>. Players have Observer/read-only access. Existing edited guides are preserved unless you explicitly choose to update them.</p>`; break;
+      default: content = `<p>${entry.displayName === "Optional 1" ? "MVP vote with one winner, six GM reasons, and 23 campaign benefits." : "Three end-of-session award questions, three GM reasons, and ten heroic benefits."} Everything is editable after import. Nothing is created until you save Settings.</p>`;
+    }
+    host.innerHTML = `${header}<div class="pr-preset-preview-content">${content}</div>`;
+  }
+
+  #renderImportedGroups() {
+    const host = this.element.querySelector('[data-imported-preset-groups]');
+    if (!host) return;
+    host.innerHTML = this._presetGroups.length ? this._presetGroups.map(group => `<div class="pr-preset-group-row"><input aria-label="Imported preset name" maxlength="100" value="${htmlEscape(group.name)}" data-imported-group-input="${htmlEscape(group.id)}"><button type="button" data-action="rename-imported-preset" data-group-id="${htmlEscape(group.id)}"><i class="fa-solid fa-pen"></i> Rename</button></div>`).join("") : '<p class="pr-preset-note">No imported preset groups in this World yet.</p>';
+  }
+
+  #renameImportedGroup(groupId) {
+    const input = Array.from(this.element.querySelectorAll('[data-imported-group-input]')).find(item => item.dataset.importedGroupInput === groupId);
+    if (!input) return;
+    try {
+      this._presetGroups = BuiltInPresetsService.rename(this._presetGroups, groupId, input.value);
+      this.#renderImportedGroups();
+      this.#renderBuiltInPreview();
+      ui.notifications.info("Preset renamed in the editor. Click Save Settings to apply it to this World.");
+    } catch (error) { ui.notifications.warn(error.message); }
+  }
+
+  async #importBuiltIn() {
+    if (this._busy || !this._selectedBuiltIn || this.element.querySelector('[name="builtInPresetSelect"]')?.value !== this._selectedBuiltIn.entry.id) return;
+    const { entry, data } = this._selectedBuiltIn;
+    const current = this.#serialize();
+    const old = this._presetGroups.find(group => group.name.trim().toLowerCase() === entry.name.trim().toLowerCase());
+    const confirmation = old
+      ? `This replaces only <strong>${htmlEscape(entry.name)}</strong> (its ${old.votingIds.length} voting profiles, ${old.reasonIds.length} reasons, and ${old.benefitIds.length} benefits). Manual data and other imported sets are preserved. <strong>Edits within this same-name group will be replaced.</strong>`
+      : `Import <strong>${htmlEscape(entry.name)}</strong> as a new editable set. Other configured data will be preserved.`;
+    const accepted = await confirmDialog({ title: old ? "Replace Imported Preset?" : "Import Built-in Preset?", content: `<p>${confirmation}</p><p>Review the staged changes and click <strong>Save Settings</strong> to commit. No balances, Actors, or point history will change.</p>`, yes: old ? "Replace This Preset" : "Import This Preset", danger: Boolean(old) });
+    if (!accepted) return;
+    try {
+      this._busy = true;
+      const result = BuiltInPresetsService.apply(current, data, entry.name);
+      this._presetGroups = result.config.importedPresetGroups;
+      this.#replaceConfigurationEditors(result.config);
+      if (this.element.querySelector('[name="createPresetJournals"]')?.checked) {
+        this._pendingJournalJobs.set(result.group.id, { entry, groupId: result.group.id, updateExisting: Boolean(this.element.querySelector('[name="updatePresetJournals"]')?.checked) });
+      } else this._pendingJournalJobs.delete(result.group.id);
+      this.#renderImportedGroups();
+      this.#closePresets();
+      ui.notifications.info(`Staged ${entry.name}. Click Save Settings to apply${this._pendingJournalJobs.has(result.group.id) ? " and create Player Journals" : ""}.`);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Built-in preset import failed`, error);
+      ui.notifications.error(error.message || "Preset import failed.");
+    } finally { this._busy = false; }
+  }
+
+  #replaceConfigurationEditors(config) {
+    const host = this.element.querySelector("[data-profile-panels]");
+    const select = this.element.querySelector('[name="votingProfileSelect"]');
+    const reasons = this.element.querySelector("[data-reason-list]");
+    const benefits = this.element.querySelector("[data-benefit-list]");
+    if (!host || !select || !reasons || !benefits) throw new Error("Settings editor is unavailable.");
+    host.innerHTML = config.votingProfiles.map(profile => this.#profilePanel(profile)).join("");
+    select.innerHTML = config.votingProfiles.map(profile => `<option value="${htmlEscape(profile.id)}">${htmlEscape(profile.name)}</option>`).join("");
+    reasons.innerHTML = config.giveReasons.length ? config.giveReasons.map(row => this.#reasonRow({ ...row, virtual: false })).join("") : "";
+    benefits.innerHTML = config.benefits.length ? config.benefits.map(row => this.#benefitRow({ ...row, virtual: false })).join("") : "";
+    if (!config.giveReasons.length) this.#addReason({ fallback: true });
+    if (!config.benefits.length) this.#addBenefit({ fallback: true });
+    this.#setVotingProfile(this.selectedProfileId, { focus: false });
+    this.element.querySelectorAll('[data-config-row="question"]').forEach(row => this.#syncQuestionType(row, { initial: true }));
+    this.#renumberVotingRows();
   }
 
   #setTab(tab, { focus = true } = {}) {
@@ -408,15 +555,15 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
       const host = this.element.querySelector("[data-profile-panels]");
       const select = this.element.querySelector('[name="votingProfileSelect"]');
       if (!host || !select) throw new Error("Voting Profiles editor is unavailable.");
-      const current = this.#serialize().votingProfiles.map(profile => stripVotingIds(profile));
+      const current = this.#serialize().votingProfiles;
       const rows = mode === "merge" ? EcosystemTransferService.merge(type, current, importedRows) : importedRows;
       const withIds = rows.map(profile => ({
         ...profile,
-        id: randomId("profile"),
+        id: profile.id || randomId("profile"),
         questions: profile.questions.map(question => ({
           ...question,
-          id: randomId("question"),
-          options: (question.options ?? []).map(option => ({ ...option, id: randomId("option") }))
+          id: question.id || randomId("question"),
+          options: (question.options ?? []).map(option => ({ ...option, id: option.id || randomId("option") }))
         }))
       }));
       host.innerHTML = withIds.map(profile => this.#profilePanel(profile)).join("");
@@ -429,18 +576,18 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
     if (type === ECOSYSTEM_EXPORT_TYPES.REASONS) {
       const list = this.element.querySelector("[data-reason-list]");
       if (!list) throw new Error("Give Point Reasons list is unavailable.");
-      const current = this.#serialize().giveReasons.map(row => ({ title: row.title, description: row.description, points: row.points }));
+      const current = this.#serialize().giveReasons;
       const rows = mode === "merge" ? EcosystemTransferService.merge(type, current, importedRows) : importedRows;
-      list.innerHTML = rows.length ? rows.map(row => this.#reasonRow({ ...row, id: randomId("reason"), virtual: false })).join("") : "";
+      list.innerHTML = rows.length ? rows.map(row => this.#reasonRow({ ...row, id: row.id || randomId("reason"), virtual: false })).join("") : "";
       if (!rows.length) this.#addReason({ fallback: true });
       return;
     }
     if (type === ECOSYSTEM_EXPORT_TYPES.BENEFITS) {
       const list = this.element.querySelector("[data-benefit-list]");
       if (!list) throw new Error("Redeem Benefits list is unavailable.");
-      const current = this.#serialize().benefits.map(row => ({ name: row.name, description: row.description, cost: row.cost }));
+      const current = this.#serialize().benefits;
       const rows = mode === "merge" ? EcosystemTransferService.merge(type, current, importedRows) : importedRows;
-      list.innerHTML = rows.length ? rows.map(row => this.#benefitRow({ ...row, id: randomId("benefit"), virtual: false })).join("") : "";
+      list.innerHTML = rows.length ? rows.map(row => this.#benefitRow({ ...row, id: row.id || randomId("benefit"), virtual: false })).join("") : "";
       if (!rows.length) this.#addBenefit({ fallback: true });
     }
   }
@@ -495,7 +642,8 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
       notifyPointAdjustments: Boolean(root.querySelector('[name="notifyPointAdjustments"]')?.checked),
       votingProfiles,
       giveReasons,
-      benefits
+      benefits,
+      importedPresetGroups: BuiltInPresetsService.prune({ votingProfiles, giveReasons, benefits, importedPresetGroups: this._presetGroups ?? [] })
     };
   }
 
@@ -563,7 +711,15 @@ export class PointsRewardsSettingsApp extends HandlebarsApplicationMixin(Applica
       }
       await SettingsService.set(next);
       await AccountService.ensureConfiguredPrimaryUsers(next);
-      ui.notifications.info("Polls, Points & Rewards settings saved.");
+      const pending = [...this._pendingJournalJobs.values()];
+      const journalFailures = [];
+      for (const job of pending) {
+        try { await PresetJournalService.import(job.entry, job.groupId, { updateExisting: job.updateExisting }); }
+        catch (error) { console.error(`${MODULE_ID} | Could not create Player Journals`, error); journalFailures.push(`${job.entry.name}: ${error.message}`); }
+      }
+      this._pendingJournalJobs.clear();
+      if (journalFailures.length) ui.notifications.warn(`Settings saved, but some Player Journals failed: ${journalFailures.join("; ")}`, { permanent: true });
+      else ui.notifications.info("Polls, Points & Rewards settings saved.");
       await this.close();
     } catch (saveError) {
       console.error(`${MODULE_ID} | Settings could not be saved.`, saveError);

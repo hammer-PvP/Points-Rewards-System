@@ -4,6 +4,28 @@
 
 The module ID remains **`points-and-rewards`**.
 
+## Built-in Presets and Player Journals
+
+The Settings window has compact **Presets**, **Export All**, and **Import All** buttons in its internal header (not the Foundry title bar). The former large Portable Ecosystem Configuration panel is removed; existing JSON Export/Import functions and individual section controls are preserved.
+
+The **Presets** browser provides four opt-in options (no preset, World document or reward data is created by installation/update):
+
+| Preset | Locale | Voting Profiles | GM Give Point Reasons | Redeem Benefits |
+|---|---|---:|---:|---:|
+| Hammer's Profile | PT-BR | 1 (three end-of-session questions) | 3 | 10 |
+| Hammer's Profile | EN | 1 | 3 | 10 |
+| Optional 1 | PT-BR | 1 (single-winner MVP, GM resolves ties) | 6 | 23 |
+| Optional 1 | EN | 1 | 6 | 23 |
+
+The library shows the complete names, points, descriptions and restrictions on **Overview / Voting / Give Reasons / Benefits / Journals** tabs before the GM chooses Import. PT-BR presets have an explicit language disclaimer. They are regular editable World configurations, not hardcoded runtime rules. The settings editor also lists **Imported Preset Groups** for renaming. Reimporting a built-in preset only replaces entries tracked under an imported group with the **same complete name** (including language), after a confirmation. A group renamed by the GM remains untouched if the original is imported again. Unrelated presets and manually added records stay intact. Changes are staged in the Settings editor; **Save Settings** commits them. Existing JSON Import/Export continues to work separately.
+
+By default the import option **Create Player Journals** is checked; uncheck it to import configuration alone. On Save Settings, with that option selected, the module creates native `JournalEntry` guides in the Journal Directory:
+
+- PT-BR: `Pontos / Ganhando / Ganhando Pontos — <preset>` and `Pontos / Gastando / Gastando Pontos — <preset>`.
+- EN: `Points / Earning / Earning Points — <preset>` and `Points / Spending / Spending Points — <preset>`.
+
+Every generated guide is **Observer (read-only) for all players**; GMs can edit its content. Existing folders and documents are reused by their parent/identity rather than duplicated. Reimport **preserves the original Journal pages by default**; the optional **Update existing Player Journals** checkbox explicitly permits replacing their text. Journal guides list the earning and redemption catalog, show the Player Redemption sidebar/sheet workflow, and explain private redemption and GM Refund. Optional 1's **Encontro Fortuito / Fortuitous Encounter** is summarized within the 260-character benefit limit; the Journal contains expanded narrative guidance. The module records the transaction but does not automate D&D-specific mechanics.
+
 ## Optional private player redemptions
 
 A Player may enable **Hide redemption from other players** for an individual reward redemption. The checkbox is **OFF by default**. When enabled, the resulting redemption Chat Card is created as a native private whisper visible only to the requesting Player and all GMs (including offline GMs when they return). When disabled, the same card remains public as before. The benefit, point cost, ledger debit, Actor identity and GM-only **Refund** button work the same in either mode. Retrying an unanswered redemption retains the original request ID **and privacy choice**; it cannot publish a pending secret redemption publicly. A refund updates the original card and uses the existing private point-refund notification, without broadcasting the hidden redemption.

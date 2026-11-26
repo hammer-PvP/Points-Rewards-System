@@ -466,3 +466,57 @@
 .pr-chat-point-notification .pr-private-points-description { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: 12px; }
 .pr-chat-point-notification .pr-private-points-scope { font-size: 11px; color: #c2b5a0; }
 .pr-chat-card.pr-chat-poll-cancelled > header { color: #efaba5; }
+
+
+/* v0.6.0 — built-in presets, responsive settings header, and preview modal. */
+.pr-settings-shell { position: relative; }
+.pr-settings-shell [hidden] { display: none !important; }
+.pr-settings-shell .pr-app-header { flex-wrap: wrap; gap: 10px 14px; }
+.pr-settings-shell .pr-brand { flex: 1 1 340px; }
+.pr-settings-shell .pr-brand h1 { font-size: clamp(18px, 2vw, 23px); }
+.pr-header-preset-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px; }
+.pr-header-preset-actions button { flex: 0 0 auto; margin: 0; min-width: auto; height: 32px; padding: 5px 9px; border: 1px solid var(--pr-border); color: var(--pr-text); background: rgba(255,255,255,.04); font-size: 11px; white-space: nowrap; }
+.pr-header-preset-actions i { color: var(--pr-gold); margin-right: 4px; }
+.pr-preset-dialog { position: absolute; inset: 0; z-index: 12; padding: 14px; background: rgba(0,0,0,.80); display: flex; justify-content: center; align-items: stretch; min-height: 0; }
+.pr-preset-modal-panel { display: flex; flex-direction: column; min-height: 0; width: min(100%, 870px); border-radius: 8px; border: 1px solid var(--pr-border); background: #17171b; box-shadow: 0 10px 40px rgba(0,0,0,.5); overflow: hidden; }
+.pr-preset-modal-header { flex: 0 0 auto; padding: 13px 15px; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid var(--pr-border); }
+.pr-preset-modal-header h2 { font-size: 20px; margin: 0; color: var(--pr-gold); }
+.pr-preset-modal-header p { font-size: 11px; color: var(--pr-muted); margin: 4px 0 0; }
+.pr-preset-modal-header button { flex: 0 0 30px; }
+.pr-preset-modal-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 16px; }
+.pr-preset-selector { display: flex; flex-direction: column; gap: 5px; font-weight: 700; font-size: 12px; }
+.pr-preset-selector select { width: 100%; }
+.pr-preset-preview-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 14px; border-bottom: 1px solid var(--pr-border); }
+.pr-preset-preview-tabs button { flex: 1 1 105px; margin: 0; border-radius: 5px 5px 0 0; font-size: 11px; background: transparent; color: var(--pr-muted); border: none; }
+.pr-preset-preview-tabs button.active { color: white; background: rgba(142,43,49,.35); box-shadow: inset 0 -2px var(--pr-red); }
+.pr-preset-preview { min-height: 150px; max-height: 350px; overflow: auto; padding: 11px; border: 1px solid rgba(255,255,255,.09); border-top: 0; background: rgba(255,255,255,.025); font-size: 12px; }
+.pr-preset-facts { display: flex; flex-direction: column; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.pr-preset-facts strong { color: var(--pr-gold); font-size: 15px; }
+.pr-preset-facts small, .pr-preset-facts span { color: var(--pr-muted); font-size: 11px; }
+.pr-preset-facts .pr-preset-warning { color: var(--pr-warning); }
+.pr-preset-preview-content { padding: 6px 0; line-height: 1.45; overflow-wrap: anywhere; }
+.pr-preset-preview-content h4 { font-size: 13px; margin: 7px 0; color: var(--pr-gold); }
+.pr-preset-preview-list { list-style: none; margin: 5px 0; padding: 0; display: grid; gap: 6px; }
+.pr-preset-preview-list li { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 4px; }
+.pr-preset-preview-list li strong { font-size: 12px; }
+.pr-preset-preview-list li span { font-size: 11px; color: var(--pr-muted); }
+.pr-preset-import-options { padding-top: 12px; display: grid; gap: 8px; }
+.pr-preset-import-options label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.pr-preset-import-options input { flex: 0 0 auto; width: auto; margin-top: 4px; }
+.pr-preset-import-options span { display: flex; flex-direction: column; gap: 2px; }
+.pr-preset-import-options small { font-size: 11px; color: var(--pr-muted); }
+.pr-preset-imported-section { margin-top: 14px; border-top: 1px solid var(--pr-border); padding-top: 8px; }
+.pr-preset-imported-section h3 { font-size: 15px; margin: 0; color: var(--pr-gold); }
+.pr-preset-imported-section p, .pr-preset-note { margin: 4px 0 8px; color: var(--pr-muted); font-size: 11px; }
+.pr-preset-group-row { display: flex; gap: 7px; padding: 3px 0; align-items: center; }
+.pr-preset-group-row input { flex: 1 1 auto; min-width: 0; }
+.pr-preset-group-row button { flex: 0 0 auto; margin: 0; }
+.pr-preset-modal-footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--pr-border); }
+.pr-preset-modal-footer span { margin-right: auto; font-size: 11px; color: var(--pr-muted); }
+.pr-preset-modal-footer button { margin: 0; }
+@media (max-width: 650px) {
+ .pr-settings-shell .pr-brand { flex-basis: 100%; }
+ .pr-header-preset-actions { width: 100%; justify-content: flex-start; }
+ .pr-preset-dialog { padding: 5px; }
+ .pr-preset-modal-footer span { flex: 1 1 100%; }
+}

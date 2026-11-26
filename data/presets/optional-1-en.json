@@ -1,0 +1,176 @@
+{
+  "module": "points-and-rewards",
+  "moduleVersion": "0.6.0",
+  "schemaVersion": 2,
+  "exportType": "all",
+  "exportedAt": "2026-11-26T02:26:59Z",
+  "data": {
+    "votingProfiles": [
+      {
+        "name": "Session MVP",
+        "allowSelfVoting": false,
+        "ballotVisibility": "secret",
+        "questions": [
+          {
+            "title": "MVP (Most Valuable Player)",
+            "shortLabel": "MVP",
+            "description": "At the end of the session, vote for the character who made the most critical and meaningful contributions. Exactly one winner receives 10 points; the GM breaks any tie.",
+            "voteType": "actor",
+            "points": 10,
+            "resolveTiesByGM": true,
+            "options": []
+          }
+        ]
+      }
+    ],
+    "givePointReasons": [
+      {
+        "title": "Good Ideas",
+        "description": "Award points for good ideas during the session.",
+        "points": 2
+      },
+      {
+        "title": "Meaningful Participation",
+        "description": "Award points for important contributions during the session, especially those advancing the story.",
+        "points": 4
+      },
+      {
+        "title": "Session Attendance",
+        "description": "Award points for attending the session.",
+        "points": 2
+      },
+      {
+        "title": "Punctuality",
+        "description": "Award points for arriving on time.",
+        "points": 4
+      },
+      {
+        "title": "Notable Roleplay",
+        "description": "Award 1 point for notable character roleplay, up to 5 points per session. The GM tracks this per-session limit.",
+        "points": 1
+      },
+      {
+        "title": "Previous Session Achievements",
+        "description": "Achievements based on events from the previous session, suggested by players and subject to GM approval.",
+        "points": 2
+      }
+    ],
+    "redeemBenefits": [
+      {
+        "name": "Advantage Before a Roll",
+        "description": "Gain advantage on one d20 roll. Declare this before rolling.",
+        "cost": 8
+      },
+      {
+        "name": "Extra d20 Before the Outcome",
+        "description": "Roll an additional d20 after the initial roll, but before you learn whether it succeeded or failed.",
+        "cost": 12
+      },
+      {
+        "name": "+5 After Rolling, Before the Outcome",
+        "description": "Add +5 to a d20 roll after seeing the roll, but before learning whether it succeeded or failed.",
+        "cost": 16
+      },
+      {
+        "name": "+10 Initiative",
+        "description": "Add +10 to your initiative for a combat. May only be used immediately after initiative is rolled.",
+        "cost": 18
+      },
+      {
+        "name": "Bless for 1 Day",
+        "description": "Gain the effects of Bless for 1 day.",
+        "cost": 20
+      },
+      {
+        "name": "+5 After the Outcome",
+        "description": "Add +5 to a d20 roll after seeing the roll and after learning the outcome.",
+        "cost": 25
+      },
+      {
+        "name": "Maximize Hit Dice During a Rest",
+        "description": "Maximize all Hit Dice rolled during a rest.",
+        "cost": 30
+      },
+      {
+        "name": "Redraw Noble and Common Cards",
+        "description": "Draw both deck cards (Noble and Common) again. Only at the start of a session.",
+        "cost": 30
+      },
+      {
+        "name": "Recover One Exhaustion Level",
+        "description": "Recover one level of exhaustion.",
+        "cost": 35
+      },
+      {
+        "name": "Negate a Bad Luck Card",
+        "description": "Negate the effect of one bad luck card.",
+        "cost": 40
+      },
+      {
+        "name": "Halve Damage",
+        "description": "Reduce one instance of damage by half.",
+        "cost": 40
+      },
+      {
+        "name": "Party-wide Bless for 1 Day",
+        "description": "Grant the entire party the effects of Bless for 1 day.",
+        "cost": 40
+      },
+      {
+        "name": "Personal Bless for 3 Days",
+        "description": "Gain the effects of Bless for yourself for 3 days.",
+        "cost": 45
+      },
+      {
+        "name": "Choose a Natural 20",
+        "description": "Choose a natural 20 for a die roll.",
+        "cost": 80
+      },
+      {
+        "name": "Automatic Saving Throw Success",
+        "description": "Choose to succeed on a saving throw.",
+        "cost": 80
+      },
+      {
+        "name": "Party-wide Bless for 3 Days",
+        "description": "Grant the entire party the effects of Bless for 3 days.",
+        "cost": 80
+      },
+      {
+        "name": "Advantage on a Level-up Hit Die",
+        "description": "Roll a Hit Die with advantage at your next level-up.",
+        "cost": 100
+      },
+      {
+        "name": "Significant Character Sheet Change",
+        "description": "Make a significant change to your character sheet while leveling up or after a major tragedy experienced by the character. A narrative reason is required.",
+        "cost": 150
+      },
+      {
+        "name": "Fortuitous Encounter",
+        "description": "Within the next 10 in-game days, the character gains a fortunate encounter chosen by the GM: finding a needed item, avoiding deadly danger, or meeting an important NPC. This advances only the story of the character who redeemed it.",
+        "cost": 200
+      },
+      {
+        "name": "Tool Proficiency",
+        "description": "Gain proficiency with one tool of your choice. Once per character.",
+        "cost": 200
+      },
+      {
+        "name": "Maximize One Previous Hit Die",
+        "description": "Maximize one of your previously gained Hit Dice of your choice, permanently increasing your maximum hit points.",
+        "cost": 300
+      },
+      {
+        "name": "Increase an Ability Score by +1",
+        "description": "Increase one of your ability scores by +1. Once per character.",
+        "cost": 400
+      },
+      {
+        "name": "Maximize All Previous Hit Dice",
+        "description": "Maximize all of your previously gained Hit Dice, permanently increasing your maximum hit points.",
+        "cost": 500
+      }
+    ]
+  }
+}

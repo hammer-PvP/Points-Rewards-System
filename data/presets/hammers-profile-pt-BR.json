@@ -1,0 +1,114 @@
+{
+  "module": "points-and-rewards",
+  "moduleVersion": "0.6.0",
+  "schemaVersion": 2,
+  "exportType": "all",
+  "exportedAt": "2026-11-26T02:26:59Z",
+  "data": {
+    "votingProfiles": [
+      {
+        "name": "Fim de Sessão!",
+        "allowSelfVoting": false,
+        "ballotVisibility": "secret",
+        "questions": [
+          {
+            "title": "Jogador Destaque",
+            "shortLabel": "O CARA!",
+            "description": "Quem brilhou nesta sessão? Vote no jogador que mandou muito bem, seja no combate, interpretação, criatividade ou em um momento memorável.",
+            "voteType": "actor",
+            "points": 8,
+            "resolveTiesByGM": true,
+            "options": []
+          },
+          {
+            "title": "Pelo Time!",
+            "shortLabel": "Pelo Time",
+            "description": "Para quem fez algo pensando no grupo, mesmo quando não era a melhor escolha para si próprio.",
+            "voteType": "actor",
+            "points": 5,
+            "resolveTiesByGM": true,
+            "options": []
+          },
+          {
+            "title": "Inusitado!",
+            "shortLabel": "PUTZ! KKK",
+            "description": "Deu ruim? Deu bom? Deu. Mas foi engraçado pra caramba! Vote no protagonista do desastre mais divertido da sessão.",
+            "voteType": "actor",
+            "points": 2,
+            "resolveTiesByGM": true,
+            "options": []
+          }
+        ]
+      }
+    ],
+    "givePointReasons": [
+      {
+        "title": "Pontual",
+        "description": "Chegou na hora certa e estava pronto para jogar. O GM está orgulhoso!",
+        "points": 5
+      },
+      {
+        "title": "Participou Legal",
+        "description": "Participou, interagiu e ajudou a sessão a acontecer. Direta ou indiretamente, o GM achou que você se destacou hoje.",
+        "points": 3
+      },
+      {
+        "title": "Resumiu a Sessão!",
+        "description": "Ajudou a relembrar a sessão anterior, fez um resumo ou participou ativamente da conversa para colocar todo mundo de volta nos trilhos.",
+        "points": 2
+      }
+    ],
+    "redeemBenefits": [
+      {
+        "name": "Invertida do Destino",
+        "description": "O destino acabou de piscar. Imediatamente após um d20 resultar em 1 natural ou 20 natural, inverta o resultado: 1 vira 20 e 20 vira 1. Pode ser usada em uma rolagem sua ou em uma jogada de ataque de um inimigo contra um personagem do grupo.",
+        "cost": 100
+      },
+      {
+        "name": "Momento Heroico",
+        "description": "Depois de falhar em um Saving Throw, transforme a falha em sucesso. Não pode ser usado em Death Saving Throws.",
+        "cost": 45
+      },
+      {
+        "name": "RE-ROLL!",
+        "description": "Depois de ver o resultado de uma rolagem, role novamente o mesmo dado. O novo resultado é obrigatório, mesmo que seja pior.",
+        "cost": 25
+      },
+      {
+        "name": "Não Dessa Vez!",
+        "description": "Depois que uma criatura acertar você com um ataque, mas antes do dano ser rolado, force-a a repetir a jogada de ataque. O novo resultado é obrigatório.",
+        "cost": 25
+      },
+      {
+        "name": "VANTAGEM!",
+        "description": "Eu escolho que dois dados são melhores que um! Faça a próxima rolagem de d20 com vantagem. Deve ser declarado antes da rolagem.",
+        "cost": 22
+      },
+      {
+        "name": "CINCÃO!!",
+        "description": "Adicione +5 à próxima rolagem de d20. Deve ser declarado antes de fazer a rolagem.",
+        "cost": 18
+      },
+      {
+        "name": "Ainda Não!",
+        "description": "Quando fizer um Death Saving Throw, role com vantagem. Deve ser declarado antes da rolagem.",
+        "cost": 15
+      },
+      {
+        "name": "Golpe Heroico",
+        "description": "Depois de acertar um ataque com arma, mas antes de rolar o dano, adicione um dado de dano da arma à rolagem. Esse dado adicional não é multiplicado em um acerto crítico.",
+        "cost": 12
+      },
+      {
+        "name": "Eu Sei Fazer Isso!",
+        "description": "Antes de fazer um Ability Check no qual você não tenha proficiência, considere-se proficiente para essa única rolagem e adicione seu Proficiency Bonus.",
+        "cost": 10
+      },
+      {
+        "name": "Sinta-se Abençoado",
+        "description": "Alguma força decidiu dar uma ajudinha. Adicione 1d4 à próxima rolagem de d20. Deve ser declarado antes da rolagem.",
+        "cost": 8
+      }
+    ]
+  }
+}
